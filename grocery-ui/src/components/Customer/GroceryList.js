@@ -1,0 +1,1 @@
+export default function GroceryList() { return 'Grocery List'; }

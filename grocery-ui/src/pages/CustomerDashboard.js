@@ -1,0 +1,1 @@
+export default function CustomerDashboard() { return 'Customer Dashboard'; }

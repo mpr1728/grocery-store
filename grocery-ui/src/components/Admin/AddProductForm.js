@@ -1,0 +1,1 @@
+export default function AddProductForm() { return 'Add Product'; }
