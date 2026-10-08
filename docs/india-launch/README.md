@@ -4,7 +4,7 @@ Design for an app-first, premium natural grocery store in India. The inspiration
 
 Status: first draft, 2026-10-08. Numbers are planning assumptions, not researched market data. Each one is marked and needs validation before money is committed.
 
-Working name: NearShelf (placeholder taken from the earlier domain shortlist, not decided).
+Working name: Trivarna ("three colours"). Web-screened only, not cleared against the trademark registry. See [07-brand-name.md](07-brand-name.md).
 
 ## The idea in five lines
 
@@ -24,6 +24,7 @@ Working name: NearShelf (placeholder taken from the earlier domain shortlist, no
 | [04-ai-logic.md](04-ai-logic.md) | Inventory refill, household refill, delivery, location-specific ready-made menu |
 | [05-architecture.md](05-architecture.md) | Services, data model, how this repo evolves, AWS notes |
 | [06-launch-plan.md](06-launch-plan.md) | Phases, illustrative unit economics, compliance checklist, risks |
+| [07-brand-name.md](07-brand-name.md) | Working name Trivarna, trademark and domain screen, alternatives, clearance steps |
 
 ## Working assumptions I made (change any of these)
 
@@ -40,5 +41,5 @@ Working name: NearShelf (placeholder taken from the earlier domain shortlist, no
 1. City and neighborhood for the pilot.
 2. Who owns the Indian entity and where the founders are tax resident (this drives the legal structure).
 3. Starting budget range, which sets whether phase 1 is a full hub or a smaller kitchen-plus-produce pilot.
-4. Brand name and domain.
+4. Brand name: confirm Trivarna after the registry search in [07-brand-name.md](07-brand-name.md), and pick the domain.
 5. Vegetarian only, or both.
