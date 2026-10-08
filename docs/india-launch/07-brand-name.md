@@ -58,6 +58,30 @@ A second pass queried registry records (RDAP) as well as DNS. The method was con
 
 So the bare name is not available on the endings that matter most for India (`.com`, `.in`, `.co.in`). "Trivarna Fresh" is open on all of them. A domain being free says nothing about trademark rights, which are granted country by country.
 
+## Names for a wider marketplace (Amazon or Flipkart scale)
+
+Question on 2026-10-08: which Sanskrit names still work if the business grows from grocery into a general marketplace?
+
+What a name needs for that:
+
+- **No category in the name.** Amazon and Flipkart do not say "books". A word meaning grain, harvest, or food (Navasasya, Ritubhoj, Dhanyam) would have to be dropped later.
+- **Not descriptive of commerce either.** Words that simply mean "market" or "goods" are weak trademarks, because the law is reluctant to give one company a common trade word.
+- **Short, easy to say in any Indian language and in English.**
+- **The bare `.com` obtainable**, because a company at that scale needs it.
+
+About 40 Sanskrit candidates with broad meanings (abundance, world, treasure, market, goods) were checked on `.com` and `.in`. Almost every real single word is taken on both: Vipani, Panya, Dravya, Labhya, Kamya, Ishta, Bhuvana, Samagra, Vipula, Sambhara, Purnam, Anantam, Navanidhi.
+
+| Name | Meaning | `.com` and `.in` | Web screen | View |
+|---|---|---|---|---|
+| Trivarna | Three colours | Both held by others; `.com` is for sale | No conflict found | Best fit. Not tied to any category, so it stretches to anything. "Trivarna Fresh" becomes the grocery arm, the way Amazon Fresh sits under Amazon |
+| Panyaloka | World of goods | Both not registered | No brand or filing found | Best fully open option. Four syllables, clear meaning, but leans descriptive |
+| Krayaloka | World of buying | Both not registered | Not screened separately | "Kraya" is understood in Hindi (as in kray-vikray). Leans descriptive |
+| Koshagara | Treasury, storehouse | Both not registered | No brand or filing found | Reads more like a warehouse or finance brand; long |
+| Vipanam | Trade, market | Both not registered | Conflict risk | Avoid. "Vipani" has pending Indian filings by another company in the software, retail, and technology classes, and a "Vipana Retail" company exists. Also close to the Hindi word for marketing |
+| Sarvapani, Vishvapani | Coined | Both not registered | Not screened | Avoid. "Pani" reads as "water" in Hindi |
+
+Conclusion: the marketplace ambition strengthens the case for Trivarna. The cost is the domain. `trivarna.com` should be priced and bought early, before the brand has any visible traction, with `trivarnafresh.com` and `.in` used from day one either way. The trademark filing should also be wider from the start: add classes 9, 35, 36, 38, 39, and 42 so the name is protected for a marketplace, payments, and logistics, not only food.
+
 ## Recommendation
 
 Go with Trivarna as the working name, with "Trivarna Fresh" or "Trivarna Market" as the full brand and domain. It is the only candidate that is short, easy to say across Indian languages, and carries meaning for the whole country.
