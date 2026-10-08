@@ -42,6 +42,22 @@ Short single Sanskrit words (Sasya, Urvara, Dhanyam, Vasudha, Akshayam, Annakoot
 
 "Looked free" means no DNS records on 2026-10-08. A parked or reserved domain can look the same.
 
+## Domain check across endings (registry lookup, 2026-10-08)
+
+A second pass queried registry records (RDAP) as well as DNS. The method was confirmed on `.com` and `.in` with control domains. For country endings the registry lookup is less reliable, so those rest mainly on having no DNS records.
+
+| Domain | Status |
+|---|---|
+| trivarnafresh.com, .in, .co.in, .co, .store, .app | Not registered |
+| trivarnamarket.com, .in | Not registered |
+| trivarna.com | Registered, held by a brand marketplace (for sale) |
+| trivarna.in, trivarna.co.in, trivarna.org | Registered by others |
+| trivarna.net | Not registered |
+| trivarna.co, .io, .app, .store, .shop, .ai, .xyz, .online, .market | No record found |
+| trivarna.us, .uk, .co.uk, .de, .fr, .eu, .ca, .com.au, .sg, .ae | No record found (less certain) |
+
+So the bare name is not available on the endings that matter most for India (`.com`, `.in`, `.co.in`). "Trivarna Fresh" is open on all of them. A domain being free says nothing about trademark rights, which are granted country by country.
+
 ## Recommendation
 
 Go with Trivarna as the working name, with "Trivarna Fresh" or "Trivarna Market" as the full brand and domain. It is the only candidate that is short, easy to say across Indian languages, and carries meaning for the whole country.
