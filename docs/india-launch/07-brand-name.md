@@ -1,6 +1,6 @@
 # 07. Brand name
 
-Screened: 2026-10-08. Working name is now **Trivarna**, replacing the NearShelf placeholder.
+Screened: 2026-10-08. Working name is now **Panyaloka** ("world of goods"), chosen by the founder after Trivarna was screened, with **Panyaloka Fresh** as the grocery arm. See the domain plan below. The Trivarna sections are kept as the record of that screen.
 
 ## What this screen is and is not
 
@@ -82,13 +82,54 @@ About 40 Sanskrit candidates with broad meanings (abundance, world, treasure, ma
 
 Conclusion: the marketplace ambition strengthens the case for Trivarna. The cost is the domain. `trivarna.com` should be priced and bought early, before the brand has any visible traction, with `trivarnafresh.com` and `.in` used from day one either way. The trademark filing should also be wider from the start: add classes 9, 35, 36, 38, 39, and 42 so the name is protected for a marketplace, payments, and logistics, not only food.
 
+## Panyaloka domain plan (2026-10-08)
+
+The idea: one parent brand with a section per category, such as fresh for grocery now and fashion for clothing later.
+
+Which endings exist:
+
+| Ending | Status |
+|---|---|
+| `.fresh` | Does not exist as a domain ending, so `panyaloka.fresh` cannot be registered |
+| `.grocery` | Exists but is a private brand ending, not open to the public (to my knowledge; confirm at a registrar) |
+| `.food` | Exists but appears closed to public registration (confirm at a registrar) |
+| `.fashion`, `.clothing`, `.style`, `.market`, `.store`, `.shop`, `.kitchen`, `.delivery`, `.app` | Exist and are open |
+| `.organic` | Exists, limited to certified organic businesses |
+
+Registry and DNS lookups on 2026-10-08 found Panyaloka not registered on any of these: `panyaloka.com`, `.in`, `.co.in`, `.fashion`, `.market`, `.store`, `.shop`, `.clothing`, `.style`, `.kitchen`, `.delivery`, `.app`, and also `panyalokafresh.com`, `panyalokafresh.in`, `panyalokafashion.com`.
+
+Recommended structure: one main domain with sections under it.
+
+| Section | Address | Note |
+|---|---|---|
+| Parent and marketplace | `panyaloka.com` (and `panyaloka.in` pointing to it) | The one address customers learn |
+| Grocery | `fresh.panyaloka.com` or `panyaloka.com/fresh` | Brand name "Panyaloka Fresh" |
+| Clothing, later | `fashion.panyaloka.com` or `panyaloka.com/fashion` | Brand name "Panyaloka Fashion" |
+
+Why sections under one domain, and not a different ending per category:
+
+- One login, one cart, and one account work across sections without extra engineering.
+- Search ranking builds on a single domain.
+- Customers learn one address, which makes fake look-alike sites easier to spot.
+- Adding a category costs nothing and never depends on an ending being available.
+
+`panyaloka.fashion` and similar can still be bought and pointed at the matching section, as protection and for marketing.
+
+Buy list:
+
+1. Now: `panyaloka.com`, `panyaloka.in`.
+2. Cheap protection: `panyaloka.co.in`, `panyalokafresh.com`, `panyalokafresh.in`, `panyaloka.app`.
+3. Optional, when clothing is closer: `panyaloka.fashion`.
+
 ## Recommendation
 
-Go with Trivarna as the working name, with "Trivarna Fresh" or "Trivarna Market" as the full brand and domain. It is the only candidate that is short, easy to say across Indian languages, and carries meaning for the whole country.
+Panyaloka is the working name. It is fully open on domains, the web screen found no existing brand or filing, and it is not tied to one category. Its weak point is that it describes commerce ("world of goods"), which can draw a descriptiveness objection at the trademark registry, so the attorney opinion in the steps below matters, and filing it together with a distinctive logo helps.
+
+Trivarna remains the fallback. It is a stronger trademark in principle, but its `.com`, `.in`, and `.co.in` belong to others.
 
 ## Clearance steps before spending on the name
 
-1. Search the official registry (IP India public search) for "Trivarna" using both the wordmark and the phonetic search, in these classes:
+1. Search the official registry (IP India public search) for "Panyaloka" (and near spellings such as Panyalok, Panyalokam, Punyaloka) using both the wordmark and the phonetic search, in these classes:
    - 29: dairy, meat, processed food, oils
    - 30: staples, flour, rice, spices, batters, bakery
    - 31: fresh fruit and vegetables
@@ -97,11 +138,13 @@ Go with Trivarna as the working name, with "Trivarna Fresh" or "Trivarna Market"
    - 39: delivery and storage
    - 43: prepared food and kitchen services
    - 9: mobile app
+   - 25: clothing, for the later fashion section
+   - 36, 38, 42: payments, telecom, and technology, for the marketplace
 2. Check the company name with the Ministry of Corporate Affairs, and search FSSAI licence records for businesses trading under the name.
 3. Check the app store and play store for apps with the name.
-4. Have a trademark attorney give a written opinion, including the similarity question against Triveni.
+4. Have a trademark attorney give a written opinion, including whether the name is too descriptive to register.
 5. File the word mark and the logo in at least classes 29, 30, 31, 35, and 43. Filing early matters because India gives weight to both first use and filing date.
-6. Register the chosen domains, and ask the price of `trivarna.com` only after the trademark position is clear.
+6. Register the domains in the buy list above. They are cheap enough to buy before the trademark position is clear.
 
 ## Sources
 
