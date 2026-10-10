@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,8 +42,8 @@ public class CandidateController {
     }
 
     @GetMapping("/catalog/candidates")
-    public CandidatePage waiting() {
-        return candidates.waiting();
+    public CandidatePage waiting(@RequestParam(defaultValue = "0") Long afterId) {
+        return candidates.waiting(afterId);
     }
 
     @PostMapping("/hubs/{hubId}/catalog/candidates/{candidateId}/approve")

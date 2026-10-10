@@ -30,8 +30,14 @@ public class CandidateService {
 
     @Transactional(readOnly = true)
     public CandidatePage waiting() {
+        return waiting(0L);
+    }
+
+    /** The next 100 waiting candidates after the given id, so a long list can be read in steps. */
+    @Transactional(readOnly = true)
+    public CandidatePage waiting(Long afterId) {
         return new CandidatePage(candidates.countByStatus(CatalogCandidate.NEW),
-                candidates.findTop100ByStatusOrderById(CatalogCandidate.NEW));
+                candidates.findTop100ByStatusAndIdGreaterThanOrderById(CatalogCandidate.NEW, afterId));
     }
 
     /** Puts the candidate on sale at a hub. It starts with no stock, so it shows as out of stock until received. */

@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CatalogCandidateRepository extends JpaRepository<CatalogCandidate, Long> {
 
-    List<CatalogCandidate> findTop100ByStatusOrderById(String status);
+    List<CatalogCandidate> findTop100ByStatusAndIdGreaterThanOrderById(String status, Long id);
 
     long countByStatus(String status);
 }

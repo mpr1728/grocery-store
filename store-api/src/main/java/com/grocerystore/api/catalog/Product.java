@@ -32,6 +32,8 @@ public class Product {
     private String ingredients;
     @Column(name = "image_url")
     private String imageUrl;
+    @Column(name = "image_credit")
+    private String imageCredit;
     private String source;
     @Column(name = "source_url")
     private String sourceUrl;
@@ -134,6 +136,10 @@ public class Product {
 
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public String getImageCredit() {
+        return imageCredit;
     }
 
     public String getSource() {

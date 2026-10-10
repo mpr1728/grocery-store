@@ -98,6 +98,13 @@ export default function ProductPage() {
           <p>{detail.ingredients}</p>
         </>
       )}
+      {detail.imageCredit && (
+        <p className="hint">
+          {detail.imageCredit}
+          {detail.source !== 'OFF' && detail.sourceUrl && <> (<a href={detail.sourceUrl} target="_blank" rel="noreferrer">source</a>)</>}.
+          The photo shows this kind of product, not the exact item you will receive.
+        </p>
+      )}
       {detail.source === 'OFF' && (
         <p className="hint">
           Product details and photo from <a href={detail.sourceUrl} target="_blank" rel="noreferrer">Open Food Facts</a> contributors

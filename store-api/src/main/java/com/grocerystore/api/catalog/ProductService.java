@@ -26,7 +26,7 @@ public class ProductService {
 
     public record ProductDetail(Long productId, String name, String brand, String category, String unitLabel,
             String diet, boolean privateLabel, String description, String ingredients, String imageUrl,
-            String source, String sourceUrl, int pricePaise, int available, String growingMethod, String certifier,
+            String imageCredit, String source, String sourceUrl, int pricePaise, int available, String growingMethod, String certifier,
             String certificateNumber, Long certificateDocumentId, List<BatchEvidence> batches) {
     }
 
@@ -64,7 +64,7 @@ public class ProductService {
                 .toList();
         return new ProductDetail(p.getId(), p.getName(), p.getBrand(), p.getCategory(), p.getUnitLabel(),
                 p.getDiet(), p.isPrivateLabel(), p.getDescription(), p.getIngredients(), p.getImageUrl(),
-                p.getSource(), p.getSourceUrl(), hubProduct.getPricePaise(),
+                p.getImageCredit(), p.getSource(), p.getSourceUrl(), hubProduct.getPricePaise(),
                 sellable.stream().mapToInt(StockBatch::getQuantity).sum(), p.getGrowingMethod(), p.getCertifier(),
                 p.getCertificateNumber(), p.getCertificateDocumentId(), evidence);
     }
