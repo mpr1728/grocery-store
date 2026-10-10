@@ -30,6 +30,30 @@ export default function Account() {
     refreshAccount();
   }, [refreshAccount]);
 
+  // What the shopping assistant has kept about this customer. They can delete any of it.
+  const [memory, setMemory] = useState([]);
+  const signedInAs = account ? account.email || account.phone : null;
+  useEffect(() => {
+    if (!signedInAs) {
+      setMemory([]);
+      return;
+    }
+    api.assistantMemory().then(setMemory).catch(() => {});
+  }, [signedInAs]);
+
+  async function forget(factId) {
+    try {
+      if (factId === null) {
+        await api.forgetAllMemory();
+      } else {
+        await api.forgetMemory(factId);
+      }
+      setMemory(await api.assistantMemory());
+    } catch (e) {
+      // The list simply stays as it was.
+    }
+  }
+
   const pointValue = info ? info.pointValuePaise : 100;
 
   if (account) {
@@ -68,6 +92,22 @@ export default function Account() {
               </li>
             ))}
           </ul>
+        )}
+
+        <h3>What the shopping assistant remembers</h3>
+        {memory.length === 0 && <p className="hint">Nothing yet. When you tell it things like your household size or diet, it keeps them here so you do not have to repeat them.</p>}
+        {memory.length > 0 && (
+          <>
+            <ul className="lines">
+              {memory.map((item) => (
+                <li key={item.id}>
+                  <div>{item.fact}</div>
+                  <button className="link" onClick={() => forget(item.id)}>Delete</button>
+                </li>
+              ))}
+            </ul>
+            <p className="hint"><button className="link" onClick={() => forget(null)}>Forget everything</button></p>
+          </>
         )}
 
         <p><button className="link" onClick={signOut}>Sign out</button></p>

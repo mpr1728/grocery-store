@@ -39,7 +39,7 @@ function Nutrition({ summary }) {
         ))}
       </dl>
       <p className="hint">
-        Worked out from pack weights and per 100 g figures for the food as sold, before cooking. Approximate.
+        {daily ? 'Worked out from the amounts planned to be eaten' : 'Worked out from whole packs'} and per 100 g figures for the food as sold, before cooking. Approximate.
         {summary.itemsNotCounted > 0 && ` ${summary.itemsNotCounted} ${summary.itemsNotCounted === 1 ? 'item has' : 'items have'} no figures and ${summary.itemsNotCounted === 1 ? 'is' : 'are'} not counted.`}
       </p>
     </div>
@@ -99,6 +99,7 @@ export default function Assistant() {
         notStocked: answer.notStocked,
         nutrition: answer.nutrition,
         notes: answer.notes,
+        remembered: answer.remembered,
         added: false
       }]);
     } catch (e) {
@@ -144,7 +145,11 @@ export default function Assistant() {
                     <li key={item.productId}>
                       <div>
                         <strong>{item.name}</strong>
-                        <span className="unit">{item.unitLabel} × {item.quantity}{item.note && ` · ${item.note}`}</span>
+                        <span className="unit">
+                          {item.unitLabel} × {item.quantity}
+                          {item.gramsUsed != null && ` · about ${item.gramsUsed.toLocaleString('en-IN')} g used`}
+                          {item.note && ` · ${item.note}`}
+                        </span>
                       </div>
                       <span className="line-total">{money(item.pricePaise * item.quantity)}</span>
                     </li>
@@ -160,6 +165,11 @@ export default function Assistant() {
             )}
             {turn.notes && turn.notes.map((note) => <p key={note} className="hint">{note}</p>)}
             {turn.nutrition && <Nutrition summary={turn.nutrition} />}
+            {turn.remembered && turn.remembered.length > 0 && (
+              <p className="hint">
+                I will remember: {turn.remembered.join('; ')}. <Link to="/account">See or delete what I remember</Link>
+              </p>
+            )}
             {turn.notStocked && turn.notStocked.length > 0 && (
               <p className="hint">Not available here: {turn.notStocked.join(', ')}.</p>
             )}

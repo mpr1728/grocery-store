@@ -55,10 +55,12 @@ class AccountRewardsAssistantTest {
     static class FakePlanner implements CartPlanner {
         Plan next;
         List<Turn> lastHistory;
+        String lastInstructions;
 
         @Override
         public Plan plan(String instructions, List<Turn> history, String message) {
             lastHistory = history;
+            lastInstructions = instructions;
             return next;
         }
     }
@@ -208,10 +210,10 @@ class AccountRewardsAssistantTest {
         Product paneer = stocked("Paneer", 9500, 3);
         Product gongura = stocked("Gongura", 2500, 0);
         planner.next = new Plan("Here is your palak paneer.", List.of(
-                new PlannedItem(paneer.getId(), 40, "main ingredient"),
-                new PlannedItem(paneer.getId(), 1, "repeated"),
-                new PlannedItem(gongura.getId(), 1, "out of stock"),
-                new PlannedItem(987654321L, 2, "not a real product")), List.of("Fresh cream"), null, null);
+                new PlannedItem(paneer.getId(), 40, "main ingredient", null),
+                new PlannedItem(paneer.getId(), 1, "repeated", null),
+                new PlannedItem(gongura.getId(), 1, "out of stock", null),
+                new PlannedItem(987654321L, 2, "not a real product", null)), List.of("Fresh cream"), null, null, List.of());
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("palak paneer for 4", null));
 
@@ -224,8 +226,8 @@ class AccountRewardsAssistantTest {
 
         // An ingredient reported as missing that the store does have is added to the list instead.
         Product garlic = stocked("Garlic", 4000, 5);
-        planner.next = new Plan("Here you go.", List.of(new PlannedItem(paneer.getId(), 1, "")),
-                List.of("garlic", "saffron"), null, null);
+        planner.next = new Plan("Here you go.", List.of(new PlannedItem(paneer.getId(), 1, "", null)),
+                List.of("garlic", "saffron"), null, null, List.of());
         AssistantReply second = assistant.ask(hub.getId(), customer, new AskRequest("paneer curry", null));
         assertThat(second.items()).extracting(i -> i.productId()).containsExactly(paneer.getId(), garlic.getId());
         assertThat(second.notStocked()).containsExactly("saffron");
@@ -246,8 +248,8 @@ class AccountRewardsAssistantTest {
         batches.save(new StockBatch(hub.getId(), milk.getId(), "B-milk", Instant.now(clock), null, 50, "T-01"));
 
         // 2 rice (800) + 2 dal (300) + 7 milk, which is cut to 4 (120) = 1220 rupees against a 700 rupee limit.
-        planner.next = new Plan("A week of basics.", List.of(new PlannedItem(rice.getId(), 2, ""),
-                new PlannedItem(dal.getId(), 2, ""), new PlannedItem(milk.getId(), 7, "")), List.of(), 700, null);
+        planner.next = new Plan("A week of basics.", List.of(new PlannedItem(rice.getId(), 2, "", null),
+                new PlannedItem(dal.getId(), 2, "", null), new PlannedItem(milk.getId(), 7, "", null)), List.of(), 700, null, List.of());
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("weekly groceries under 700", null));
 
@@ -271,8 +273,8 @@ class AccountRewardsAssistantTest {
             hubProducts.save(new HubProduct(hub.getId(), product.getId(), (Integer) row[1]));
             batches.save(new StockBatch(hub.getId(), product.getId(), "B" + product.getId(), Instant.now(clock), null, 10, "T-01"));
         }
-        planner.next = new Plan("Basics for the week.", List.of(new PlannedItem(bigRice.getId(), 1, ""),
-                new PlannedItem(chips.getId(), 2, "")), List.of(), null, null);
+        planner.next = new Plan("Basics for the week.", List.of(new PlannedItem(bigRice.getId(), 1, "", null),
+                new PlannedItem(chips.getId(), 2, "", null)), List.of(), null, null, List.of());
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("budget friendly weekly groceries", null));
 
@@ -289,9 +291,9 @@ class AccountRewardsAssistantTest {
         products.save(dal);
         Product mystery = stocked("Mystery " + System.nanoTime(), 5000, 10);
         // One 1 kg pack of dal holds 220 g of protein: about 31 g a day for one person over seven days.
-        planner.next = new Plan("High protein week.", List.of(new PlannedItem(dal.getId(), 1, ""),
-                new PlannedItem(mystery.getId(), 1, "")), List.of(), null,
-                new NutritionGoal(1, 7, 30, null, null, null, null));
+        planner.next = new Plan("High protein week.", List.of(new PlannedItem(dal.getId(), 1, "", null),
+                new PlannedItem(mystery.getId(), 1, "", null)), List.of(), null,
+                new NutritionGoal(1, 7, 30, null, null, null, null), List.of("Lives alone", "lives alone"));
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("30 g protein a day for a week", null));
 
@@ -300,6 +302,35 @@ class AccountRewardsAssistantTest {
         assertThat(reply.nutrition().perPersonPerDay().proteinG()).isEqualTo(31);
         assertThat(reply.nutrition().target().proteinG()).isEqualTo(30);
         assertThat(reply.nutrition().itemsNotCounted()).isEqualTo(1);
+        // A fact is kept once, and is given to the model the next time.
+        assertThat(reply.remembered()).containsExactly("Lives alone");
+
+        // Planned in grams: 700 g of dal eaten is 154 g protein, 22 g a day, from one 1 kg pack.
+        planner.next = new Plan("Planned by weight.", List.of(new PlannedItem(dal.getId(), 5, "", 700)), List.of(), null,
+                new NutritionGoal(1, 7, 22, null, null, null, null), List.of());
+        AssistantReply byWeight = assistant.ask(hub.getId(), customer, new AskRequest("22 g protein a day", null));
+        assertThat(byWeight.items()).singleElement().satisfies(item -> {
+            assertThat(item.quantity()).isEqualTo(1);
+            assertThat(item.gramsUsed()).isEqualTo(700);
+        });
+        assertThat(byWeight.nutrition().perPersonPerDay().proteinG()).isEqualTo(22);
+        assertThat(planner.lastInstructions).contains("Lives alone");
+    }
+
+    @Test
+    void aVegetarianNeverGetsEggs() {
+        Customer customer = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        Product dal = stocked("Veg dal " + System.nanoTime(), 18500, 10);
+        Product eggs = products.save(new Product("SKU-egg-" + System.nanoTime(), "Eggs " + System.nanoTime(), "Dairy and eggs", "6 pieces", "NON_VEG", "CHILLED", null, false, null));
+        hubProducts.save(new HubProduct(hub.getId(), eggs.getId(), 7800));
+        batches.save(new StockBatch(hub.getId(), eggs.getId(), "B-egg" + eggs.getId(), Instant.now(clock), null, 10, "T-01"));
+        planner.next = new Plan("Protein for the week.", List.of(new PlannedItem(dal.getId(), 1, "", null),
+                new PlannedItem(eggs.getId(), 1, "", null)), List.of(), null, null, List.of());
+
+        AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("vegetarian high protein week", null));
+
+        assertThat(reply.items()).extracting(i -> i.productId()).containsExactly(dal.getId());
+        assertThat(reply.notes()).anyMatch(note -> note.contains("vegetarian"));
     }
 
     @Test
@@ -314,8 +345,8 @@ class AccountRewardsAssistantTest {
             batches.save(new StockBatch(hub.getId(), product.getId(), "B" + product.getId(), Instant.now(clock), null, 10, "T-01"));
         }
         // The model names both pack sizes. Only one may stay, and the earlier budget request still applies.
-        planner.next = new Plan("Removed the oil.", List.of(new PlannedItem(big.getId(), 1, ""),
-                new PlannedItem(small.getId(), 1, "")), List.of(), null, null);
+        planner.next = new Plan("Removed the oil.", List.of(new PlannedItem(big.getId(), 1, "", null),
+                new PlannedItem(small.getId(), 1, "", null)), List.of(), null, null, List.of());
         List<Turn> history = List.of(new Turn("user", "make it budget friendly", null),
                 new Turn("assistant", "Here is a list.", List.of(new TurnItem(big.getId(), 1))));
 

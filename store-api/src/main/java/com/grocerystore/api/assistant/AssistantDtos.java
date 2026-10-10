@@ -37,7 +37,7 @@ public final class AssistantDtos {
      * and are not sent back as conversation.
      */
     public record AssistantReply(String reply, List<Suggested> items, List<String> notStocked,
-            NutritionSummary nutrition, List<String> notes) {
+            NutritionSummary nutrition, List<String> notes, List<String> remembered) {
     }
 
     /** Grams of each nutrient, and kilocalories. A null field means it was not stated or is not known. */
@@ -52,6 +52,8 @@ public final class AssistantDtos {
             Macros target, int itemsNotCounted) {
     }
 
-    public record Suggested(Long productId, String name, String unitLabel, int pricePaise, int quantity, String note) {
+    /** gramsUsed is how much of this the plan expects to be eaten, when the list was built to nutrition targets. */
+    public record Suggested(Long productId, String name, String unitLabel, int pricePaise, int quantity, String note,
+            Integer gramsUsed) {
     }
 }

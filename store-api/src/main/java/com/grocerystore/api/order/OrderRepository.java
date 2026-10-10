@@ -12,4 +12,6 @@ public interface OrderRepository extends JpaRepository<CustomerOrder, Long> {
     boolean existsByOrderNumber(String orderNumber);
 
     List<CustomerOrder> findTop100ByHubIdOrderByCreatedAtDescIdDesc(Long hubId);
+
+    List<CustomerOrder> findTop5ByCustomerIdOrderByIdDesc(Long customerId);
 }

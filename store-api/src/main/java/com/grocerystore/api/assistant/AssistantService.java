@@ -40,6 +40,7 @@ import com.grocerystore.api.common.StoreProperties;
 import com.grocerystore.api.common.UnavailableException;
 import com.grocerystore.api.customer.Customer;
 import com.grocerystore.api.hub.HubService;
+import com.grocerystore.api.order.OrderService;
 
 @Service
 public class AssistantService {
@@ -77,8 +78,17 @@ public class AssistantService {
             days if they do not say). Then choose products and quantities so the whole list supplies each \
             target times people times days. Work it out from each product's pack weight and per 100 g \
             figures. Dal, paneer, eggs, curd, and milk carry protein. Whole grains, dal, and vegetables \
-            carry fibre. Oil, ghee, and nuts carry fat. For nutrition plans the fresh limit still applies, so \
-            say in reply which fresh items to reorder during the week.
+            carry fibre. Oil, ghee, and nuts carry fat.
+            - In a nutrition plan, set gramsUsed on every item: the grams of that product the household will \
+            actually eat over the whole period, for example 30 g of oil a day for one person for a week is \
+            210. The store works out the packs from it, so a pack may be only partly used. Add up \
+            gramsUsed divided by 100 times each per 100 g figure, and adjust the amounts until every target \
+            is met within ten percent. Spices and aromatics need only small amounts.
+            - "Vegetarian" in India means no meat, fish, or egg. Use only VEG products for a vegetarian.
+            - remember holds lasting facts the shopper states about themselves that matter for shopping next \
+            time: household size, diet, allergies, dislikes, usual budget, nutrition goals. Short phrases, \
+            only what they said, nothing guessed, and nothing already listed under what they told us.
+            - Write plain sentences without dashes.
             - Earlier assistant messages end with the list the shopper was shown, in square brackets. When \
             the new message asks to change, shrink, or question that list, start from that list and change \
             only what is asked: take out what they call too much or do not want, swap what they ask to \
@@ -119,23 +129,33 @@ public class AssistantService {
     private static final int PACKS_PER_DAY_OF_SHELF_LIFE = 2;
     private static final int FRESH_MEANS_DAYS = 4;
     // A nutrition plan is asked for again when any stated target is missed by more than this fraction.
-    private static final double NUTRITION_TOLERANCE = 0.2;
+    private static final double NUTRITION_TOLERANCE = 0.15;
+    private static final int NUTRITION_RETRIES = 2;
+    // Beyond this the shopper is told the list misses their targets. Closer than this is close enough.
+    private static final double NUTRITION_WARNING = 0.25;
+    private static final Pattern VEGETARIAN = Pattern.compile(
+            "\\bvegetarian\\b|\\bveg only\\b|\\bpure veg\\b|\\beggless\\b|\\bno eggs?\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern NON_VEGETARIAN = Pattern.compile("non.?veg", Pattern.CASE_INSENSITIVE);
 
     private final HubService hubs;
     private final HubProductRepository hubProducts;
     private final ProductRepository products;
     private final AssistantRequestRepository requests;
+    private final MemoryService memory;
+    private final OrderService orders;
     private final ObjectProvider<CartPlanner> planner;
     private final StoreProperties properties;
     private final Clock clock;
 
     public AssistantService(HubService hubs, HubProductRepository hubProducts, ProductRepository products,
-            AssistantRequestRepository requests, ObjectProvider<CartPlanner> planner, StoreProperties properties,
-            Clock clock) {
+            AssistantRequestRepository requests, MemoryService memory, OrderService orders,
+            ObjectProvider<CartPlanner> planner, StoreProperties properties, Clock clock) {
         this.hubs = hubs;
         this.hubProducts = hubProducts;
         this.products = products;
         this.requests = requests;
+        this.memory = memory;
+        this.orders = orders;
         this.planner = planner;
         this.properties = properties;
         this.clock = clock;
@@ -160,7 +180,9 @@ public class AssistantService {
         List<CatalogItem> catalog = hubProducts.findCatalog(hubId, LocalDate.now(clock), null, null);
         Map<Long, Product> details = products.findAllById(catalog.stream().map(CatalogItem::productId).toList())
                 .stream().collect(Collectors.toMap(Product::getId, Function.identity()));
-        String instructions = INSTRUCTIONS + catalogLines(catalog, details);
+        List<String> facts = memory.facts(customer.getId()).stream().map(MemoryService.Fact::fact).toList();
+        List<String> bought = orders.recentlyBought(customer.getId());
+        String instructions = INSTRUCTIONS + catalogLines(catalog, details) + aboutShopper(facts, bought);
         Map<Long, CatalogItem> byId = catalog.stream()
                 .collect(Collectors.toMap(CatalogItem::productId, Function.identity()));
         List<Turn> earlier = request.history() == null ? List.of() : request.history();
@@ -177,23 +199,38 @@ public class AssistantService {
             log.warn("Assistant call failed", e);
             throw new UnavailableException("The assistant could not answer just now. Please try again.");
         }
-        AssistantReply reply = checked(plan, catalog);
+        AssistantReply reply = checked(plan, catalog, details);
         List<String> notes = new ArrayList<>();
 
         // Nutrition targets: the server adds up what the list really contains and asks once more if it is off.
         NutritionGoal goal = plan.goal();
-        if (goal != null) {
-            NutritionSummary first = nutrition(reply.items(), details, goal);
-            if (miss(first) > NUTRITION_TOLERANCE) {
-                try {
-                    AssistantReply second = checked(cartPlanner.plan(instructions, history,
-                            message + "\n\n(" + nutritionFeedback(first) + ")"), catalog);
-                    if (!second.items().isEmpty() && miss(nutrition(second.items(), details, goal)) < miss(first)) {
-                        reply = second;
-                    }
-                } catch (RuntimeException e) {
-                    log.warn("Assistant nutrition retry failed", e);
+        for (int attempt = 0; goal != null && attempt < NUTRITION_RETRIES; attempt++) {
+            NutritionSummary current = nutrition(reply.items(), details, goal);
+            if (miss(current) <= NUTRITION_TOLERANCE) {
+                break;
+            }
+            try {
+                AssistantReply next = checked(cartPlanner.plan(instructions, history,
+                        message + "\n\n(" + nutritionFeedback(current) + ")"), catalog, details);
+                if (!next.items().isEmpty() && miss(nutrition(next.items(), details, goal)) < miss(current)) {
+                    reply = next;
                 }
+            } catch (RuntimeException e) {
+                log.warn("Assistant nutrition retry failed", e);
+                break;
+            }
+        }
+
+        // A shopper who says they are vegetarian never gets meat, fish, or egg, whatever the model chose.
+        String knownAndSaid = String.join("\n", facts) + "\n" + String.join("\n",
+                earlier.stream().filter(t -> "user".equals(t.role())).map(Turn::text).toList()) + "\n" + message;
+        if (VEGETARIAN.matcher(knownAndSaid).find() && !NON_VEGETARIAN.matcher(message).find()) {
+            List<Suggested> vegetarian = reply.items().stream()
+                    .filter(line -> !"NON_VEG".equals(byId.get(line.productId()).diet()))
+                    .toList();
+            if (vegetarian.size() < reply.items().size()) {
+                reply = new AssistantReply(reply.reply(), vegetarian, reply.notStocked(), null, List.of(), List.of());
+                notes.add("I left out items with egg, meat, or fish because you eat vegetarian.");
             }
         }
 
@@ -212,18 +249,36 @@ public class AssistantService {
             reply = economical(reply, catalog, allSaid);
         }
         if (budget != null && totalRupees(reply) > budget) {
-            reply = withinBudget(cartPlanner, instructions, history, message, catalog, reply, budget, notes);
+            reply = withinBudget(cartPlanner, instructions, history, message, catalog, details, reply, budget, notes);
         }
         if (saving && budget == null && !reply.items().isEmpty()) {
             notes.add("Tell me an amount, for example \"under 1000 rupees\", and I will fit the list to it.");
         }
         NutritionSummary summary = nutrition(reply.items(), details, goal);
-        if (miss(summary) > NUTRITION_TOLERANCE) {
+        if (miss(summary) > NUTRITION_WARNING) {
             // Whatever the model claims in its reply, say plainly when the numbers do not match.
             notes.add("This list does not match your nutrition targets yet. The figures below are what it"
-                    + " really contains, counting whole packs, including what would be left over.");
+                    + " really provides.");
         }
-        return new AssistantReply(reply.reply(), reply.items(), reply.notStocked(), summary, List.copyOf(notes));
+        List<String> remembered = plan.remember() == null ? List.of()
+                : memory.remember(customer.getId(), plan.remember());
+        return new AssistantReply(reply.reply(), reply.items(), reply.notStocked(), summary, List.copyOf(notes),
+                remembered);
+    }
+
+    /** What is already known about this shopper, for the end of the instructions. Empty when nothing is. */
+    private static String aboutShopper(List<String> facts, List<String> bought) {
+        StringBuilder text = new StringBuilder();
+        if (!facts.isEmpty()) {
+            text.append("\nWhat this shopper told us in earlier conversations. Use it without asking again,"
+                    + " and let anything they say now override it:\n");
+            facts.forEach(fact -> text.append("- ").append(fact).append('\n'));
+        }
+        if (!bought.isEmpty()) {
+            text.append("\nWhat they bought in their last few orders, as a hint to their taste: ")
+                    .append(String.join(", ", bought)).append(".\n");
+        }
+        return text.toString();
     }
 
     /** The list an earlier assistant turn showed, as text for the model. Empty for other turns. */
@@ -262,7 +317,9 @@ public class AssistantService {
                 notCounted++;
                 continue;
             }
-            double hundredGrams = product.getPackGrams() * (double) line.quantity() / 100;
+            // With a planned amount, count what will be eaten. Otherwise count the whole packs.
+            double hundredGrams = (line.gramsUsed() != null ? line.gramsUsed()
+                    : product.getPackGrams() * (double) line.quantity()) / 100;
             protein += hundredGrams * product.getProteinG().doubleValue();
             fat += hundredGrams * product.getFatG().doubleValue();
             carbs += hundredGrams * product.getCarbsG().doubleValue();
@@ -358,21 +415,24 @@ public class AssistantService {
                     cheapest = other;
                 }
             }
+            // A different pack size changes how many packs the planned amount needs, so that is dropped here.
             kept.putIfAbsent(cheapest.productId(), new Suggested(cheapest.productId(), cheapest.name(),
                     cheapest.unitLabel(), cheapest.pricePaise(),
-                    (int) Math.min(line.quantity(), cheapest.available()), line.note()));
+                    (int) Math.min(line.quantity(), cheapest.available()), line.note(),
+                    cheapest == item ? line.gramsUsed() : null));
         }
-        return new AssistantReply(reply.reply(), List.copyOf(kept.values()), reply.notStocked(), null, List.of());
+        return new AssistantReply(reply.reply(), List.copyOf(kept.values()), reply.notStocked(), null, List.of(), List.of());
     }
 
     /** Asks once more with the real total, then trims the list itself if it is still over the limit. */
     private static AssistantReply withinBudget(CartPlanner cartPlanner, String instructions, List<Turn> history,
-            String message, List<CatalogItem> catalog, AssistantReply reply, int budget, List<String> notes) {
+            String message, List<CatalogItem> catalog, Map<Long, Product> details, AssistantReply reply, int budget,
+            List<String> notes) {
         try {
             String again = message + "\n\n(The list you suggested costs " + totalRupees(reply)
                     + " rupees. It must cost " + budget + " rupees or less. Keep the essentials and remove or"
                     + " reduce the rest.)";
-            AssistantReply second = checked(cartPlanner.plan(instructions, history, again), catalog);
+            AssistantReply second = checked(cartPlanner.plan(instructions, history, again), catalog, details);
             second = economical(second, catalog, message);
             if (!second.items().isEmpty() && totalRupees(second) < totalRupees(reply)) {
                 reply = second;
@@ -395,13 +455,13 @@ public class AssistantService {
             Suggested line = items.get(costliest);
             if (line.quantity() > 1) {
                 items.set(costliest, new Suggested(line.productId(), line.name(), line.unitLabel(), line.pricePaise(),
-                        line.quantity() - 1, line.note()));
+                        line.quantity() - 1, line.note(), null));
             } else {
                 items.remove(costliest);
             }
         }
         notes.add("I took a few things off to keep the list within " + budget + " rupees.");
-        return new AssistantReply(reply.reply(), List.copyOf(items), reply.notStocked(), null, List.of());
+        return new AssistantReply(reply.reply(), List.copyOf(items), reply.notStocked(), null, List.of(), List.of());
     }
 
     private static long lineTotal(Suggested line) {
@@ -417,7 +477,7 @@ public class AssistantService {
     }
 
     /** Keeps only real, in-stock products and sane quantities, whatever the model returned. */
-    private static AssistantReply checked(Plan plan, List<CatalogItem> catalog) {
+    private static AssistantReply checked(Plan plan, List<CatalogItem> catalog, Map<Long, Product> details) {
         Map<Long, CatalogItem> byId = catalog.stream()
                 .collect(Collectors.toMap(CatalogItem::productId, Function.identity()));
         Map<Long, Suggested> items = new LinkedHashMap<>();
@@ -440,9 +500,19 @@ public class AssistantService {
             if (item.shelfLifeDays() != null && item.shelfLifeDays() <= FRESH_MEANS_DAYS) {
                 limit = Math.min(limit, item.shelfLifeDays() * PACKS_PER_DAY_OF_SHELF_LIFE);
             }
-            int quantity = Math.max(1, Math.min(planned.quantity(), limit));
+            int wanted = planned.quantity();
+            Integer gramsUsed = planned.gramsUsed();
+            Product product = details.get(item.productId());
+            if (gramsUsed != null && product != null && product.getPackGrams() != null) {
+                // The planned amount decides how many packs to buy, whatever count the model wrote.
+                wanted = (int) Math.ceil(gramsUsed / (double) product.getPackGrams());
+            }
+            int quantity = Math.max(1, Math.min(wanted, limit));
+            if (gramsUsed != null && product != null && product.getPackGrams() != null) {
+                gramsUsed = Math.min(gramsUsed, quantity * product.getPackGrams());
+            }
             items.put(item.productId(), new Suggested(item.productId(), item.name(), item.unitLabel(),
-                    item.pricePaise(), quantity, clip(planned.note(), 120)));
+                    item.pricePaise(), quantity, clip(planned.note(), 120), gramsUsed));
         }
         // The model sometimes reports an ingredient as missing when the store has it. Add those instead.
         List<String> missing = new ArrayList<>();
@@ -452,10 +522,10 @@ public class AssistantService {
                 missing.add(wanted);
             } else if (!items.containsKey(match.productId())) {
                 items.put(match.productId(), new Suggested(match.productId(), match.name(), match.unitLabel(),
-                        match.pricePaise(), 1, ""));
+                        match.pricePaise(), 1, "", null));
             }
         }
-        return new AssistantReply(clip(plan.reply(), MAX_REPLY_LENGTH), List.copyOf(items.values()), missing, null, List.of());
+        return new AssistantReply(clip(plan.reply(), MAX_REPLY_LENGTH), List.copyOf(items.values()), missing, null, List.of(), List.of());
     }
 
     /** An in-stock product whose name is the wanted ingredient, give or take a qualifier, or null. */

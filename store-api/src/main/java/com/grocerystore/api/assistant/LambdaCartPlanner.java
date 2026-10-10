@@ -58,13 +58,20 @@ public class LambdaCartPlanner implements CartPlanner {
             JsonNode productId = item.path("productId");
             JsonNode quantity = item.path("quantity");
             if (productId.canConvertToLong() && quantity.canConvertToInt()) {
-                items.add(new PlannedItem(productId.asLong(), quantity.asInt(), item.path("note").asText("")));
+                items.add(new PlannedItem(productId.asLong(), quantity.asInt(), item.path("note").asText(""),
+                        positive(item, "gramsUsed")));
             }
         }
         List<String> notStocked = new ArrayList<>();
         for (JsonNode name : root.path("notStocked")) {
             if (name.isTextual() && !name.asText().isBlank()) {
                 notStocked.add(name.asText());
+            }
+        }
+        List<String> remember = new ArrayList<>();
+        for (JsonNode fact : root.path("remember")) {
+            if (fact.isTextual() && !fact.asText().isBlank()) {
+                remember.add(fact.asText());
             }
         }
         JsonNode budget = root.path("budgetRupees");
@@ -78,7 +85,7 @@ public class LambdaCartPlanner implements CartPlanner {
             nutritionGoal = null;
         }
         return new Plan(root.path("reply").asText(""), items, notStocked,
-                budget.canConvertToInt() && budget.asInt() > 0 ? budget.asInt() : null, nutritionGoal);
+                budget.canConvertToInt() && budget.asInt() > 0 ? budget.asInt() : null, nutritionGoal, remember);
     }
 
     private static Integer positive(JsonNode node, String field) {

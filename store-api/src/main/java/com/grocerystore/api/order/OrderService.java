@@ -166,6 +166,22 @@ public class OrderService {
                 .toList();
     }
 
+    /** What a customer bought in their last few orders, most often bought first, for the shopping assistant. */
+    @Transactional(readOnly = true)
+    public List<String> recentlyBought(Long customerId) {
+        Map<String, Integer> counts = new TreeMap<>();
+        for (CustomerOrder order : orders.findTop5ByCustomerIdOrderByIdDesc(customerId)) {
+            for (OrderLine line : order.getLines()) {
+                counts.merge(line.getProductName(), line.getQuantity(), Integer::sum);
+            }
+        }
+        return counts.entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .limit(15)
+                .map(e -> e.getKey() + " x" + e.getValue())
+                .toList();
+    }
+
     /** Moves the order one step forward: placed, picking, packed, out for delivery, delivered. */
     @Transactional
     public OrderView advance(String orderNumber) {
