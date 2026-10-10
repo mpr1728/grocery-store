@@ -26,6 +26,8 @@ import com.grocerystore.api.assistant.AssistantService;
 import com.grocerystore.api.assistant.CartPlanner;
 import com.grocerystore.api.assistant.CartPlanner.Plan;
 import com.grocerystore.api.assistant.CartPlanner.PlannedItem;
+import com.grocerystore.api.cart.SavedCartService;
+import com.grocerystore.api.cart.SavedCartService.Line;
 import com.grocerystore.api.catalog.HubProduct;
 import com.grocerystore.api.catalog.HubProductRepository;
 import com.grocerystore.api.catalog.Product;
@@ -74,6 +76,8 @@ class AccountRewardsAssistantTest {
     OrderService orders;
     @Autowired
     AssistantService assistant;
+    @Autowired
+    SavedCartService carts;
     @Autowired
     FakePlanner planner;
     @Autowired
@@ -174,6 +178,23 @@ class AccountRewardsAssistantTest {
 
         OrderView guestOrder = orders.place(request(newPhone(), null, new LineRequest(rice.getId(), 1)));
         assertThat(guestOrder.pointsEarned()).isZero();
+    }
+
+    @Test
+    void aSavedCartIsReplacedAsAWholeAndBelongsToOneCustomer() {
+        Customer asha = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        Customer other = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        Product rice = stocked("Rice", 30000, 10);
+        Product dal = stocked("Dal", 15000, 10);
+
+        carts.replace(asha.getId(), List.of(new Line(rice.getId(), 2), new Line(dal.getId(), 1)));
+        carts.replace(asha.getId(), List.of(new Line(dal.getId(), 3), new Line(987654321L, 1)));
+
+        assertThat(carts.get(asha.getId())).containsExactly(new Line(dal.getId(), 3));
+        assertThat(carts.get(other.getId())).isEmpty();
+
+        carts.clear(asha.getId());
+        assertThat(carts.get(asha.getId())).isEmpty();
     }
 
     @Test

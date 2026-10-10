@@ -55,7 +55,50 @@ export function StoreProvider({ children }) {
     }
     setSessionToken(null);
     setAccount(null);
+    // The cart stays saved with the account. This browser starts empty for whoever uses it next.
+    setCart({});
   }, []);
+
+  // A signed-in customer's cart is kept with their account, so it is there on their next visit and on
+  // their other devices. On sign-in, anything already in this browser's cart is added to the saved one.
+  const accountKey = account ? account.email || account.phone : null;
+  const [savedCartLoaded, setSavedCartLoaded] = useState(false);
+
+  useEffect(() => {
+    setSavedCartLoaded(false);
+    if (!accountKey) {
+      return undefined;
+    }
+    let stopped = false;
+    api.savedCart()
+      .then((saved) => {
+        if (stopped) return;
+        setCart((local) => {
+          const merged = { ...local };
+          saved.lines.forEach((line) => {
+            merged[line.productId] = Math.max(merged[line.productId] || 0, line.quantity);
+          });
+          return merged;
+        });
+        setSavedCartLoaded(true);
+      })
+      .catch(() => {
+        // The cart still works from this browser's copy if the saved one cannot be read.
+      });
+    return () => { stopped = true; };
+  }, [accountKey]);
+
+  useEffect(() => {
+    if (!accountKey || !savedCartLoaded) {
+      return undefined;
+    }
+    // Wait for a pause in the taps on plus and minus before saving.
+    const timer = setTimeout(() => {
+      const lines = Object.entries(cart).map(([productId, quantity]) => ({ productId: Number(productId), quantity }));
+      api.saveCart(lines).catch(() => {});
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [cart, accountKey, savedCartLoaded]);
 
   const reload = useCallback(async () => {
     setLoading(true);

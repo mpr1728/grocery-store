@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.grocerystore.api.account.AccountService;
+import com.grocerystore.api.cart.SavedCartService;
 import com.grocerystore.api.customer.Customer;
 import com.grocerystore.api.order.OrderDtos.OrderView;
 import com.grocerystore.api.order.OrderDtos.PlaceOrderRequest;
@@ -25,10 +26,12 @@ public class OrderController {
 
     private final OrderService orders;
     private final AccountService accounts;
+    private final SavedCartService carts;
 
-    public OrderController(OrderService orders, AccountService accounts) {
+    public OrderController(OrderService orders, AccountService accounts, SavedCartService carts) {
         this.orders = orders;
         this.accounts = accounts;
+        this.carts = carts;
     }
 
     @PostMapping("/orders")
@@ -36,7 +39,12 @@ public class OrderController {
     public OrderView place(@Valid @RequestBody PlaceOrderRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         Long memberId = accounts.signedIn(authorization).map(Customer::getId).orElse(null);
-        return orders.place(request, memberId);
+        OrderView order = orders.place(request, memberId);
+        if (memberId != null) {
+            // The order has what was in the cart, so the saved copy starts empty again.
+            carts.clear(memberId);
+        }
+        return order;
     }
 
     @GetMapping("/orders/{orderNumber}")

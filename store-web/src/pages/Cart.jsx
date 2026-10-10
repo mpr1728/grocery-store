@@ -94,7 +94,11 @@ export default function Cart() {
   return (
     <div className="two-col">
       <section>
-        <h2>Your cart</h2>
+        <div className="cart-head">
+          <h2>Your cart</h2>
+          <button className="link" onClick={() => { if (window.confirm('Remove everything from your cart?')) clearCart(); }}>Clear cart</button>
+        </div>
+        {account && <p className="hint">Saved with your account, so it will be here when you come back.</p>}
         <ul className="lines">
           {lines.map(({ item, quantity }) => (
             <li key={item.productId}>

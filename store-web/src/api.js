@@ -94,6 +94,10 @@ function upload(path, fields) {
   return request(path, { method: 'POST', body: form });
 }
 
+function put(path, payload) {
+  return request(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+}
+
 function post(path, payload) {
   return request(path, {
     method: 'POST',
@@ -123,5 +127,7 @@ export const api = {
   signIn: (details) => post('/auth/signin', details),
   signOut: () => post('/auth/signout'),
   me: () => request('/me'),
+  savedCart: () => request('/me/cart'),
+  saveCart: (lines) => put('/me/cart', { lines }),
   askAssistant: (hubId, message, history) => post(`/hubs/${hubId}/assistant`, { message, history })
 };
