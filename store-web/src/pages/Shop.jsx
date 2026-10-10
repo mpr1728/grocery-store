@@ -6,10 +6,14 @@ import { money } from '../format';
 import { useStore } from '../store';
 import { TAGLINE } from '../brand';
 
+const PAGE = 48;
+
 export default function Shop() {
   const { catalog, loading, error, reload, itemCount, itemTotalPaise } = useStore();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
+  // A long list is shown a page at a time so the shop stays quick.
+  const [shown, setShown] = useState(PAGE);
 
   const categories = useMemo(() => ['All', ...new Set(catalog.map((item) => item.category))], [catalog]);
 
@@ -17,7 +21,7 @@ export default function Shop() {
     const text = query.trim().toLowerCase();
     return catalog.filter((item) =>
       (category === 'All' || item.category === category) &&
-      (text === '' || item.name.toLowerCase().includes(text)));
+      (text === '' || item.name.toLowerCase().includes(text) || (item.brand || '').toLowerCase().includes(text)));
   }, [catalog, query, category]);
 
   if (loading) {
@@ -39,11 +43,11 @@ export default function Shop() {
         placeholder="Search for milk, atta, batter…"
         aria-label="Search products"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }}
       />
       <div className="chips" role="tablist" aria-label="Categories">
         {categories.map((name) => (
-          <button key={name} role="tab" aria-selected={name === category} className={name === category ? 'chip on' : 'chip'} onClick={() => setCategory(name)}>
+          <button key={name} role="tab" aria-selected={name === category} className={name === category ? 'chip on' : 'chip'} onClick={() => { setCategory(name); setShown(PAGE); }}>
             {name}
           </button>
         ))}
@@ -52,7 +56,7 @@ export default function Shop() {
       {visible.length === 0 && <p className="notice">Nothing matches "{query}". Try a shorter word.</p>}
 
       <div className="grid">
-        {visible.map((item) => (
+        {visible.slice(0, shown).map((item) => (
           <article key={item.productId} className={item.available <= 0 ? 'card out' : 'card'}>
             <Link to={`/product/${item.productId}`} className={item.imageUrl ? 'tile photo' : 'tile'} data-category={item.category} aria-label={`${item.name}, details`}>
               {item.imageUrl && <img src={imageSrc(item.imageUrl)} alt="" loading="lazy" />}
@@ -76,6 +80,13 @@ export default function Shop() {
           </article>
         ))}
       </div>
+
+      {visible.length > shown && (
+        <p className="more">
+          <button className="small" onClick={() => setShown(shown + PAGE)}>Show more</button>
+          <span className="unit">Showing {shown} of {visible.length}</span>
+        </p>
+      )}
 
       {itemCount > 0 && (
         <Link to="/cart" className="cartbar">

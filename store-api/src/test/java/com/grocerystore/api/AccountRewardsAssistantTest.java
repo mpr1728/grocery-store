@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,7 @@ import com.grocerystore.api.assistant.CartPlanner.Plan;
 import com.grocerystore.api.assistant.CartPlanner.PlannedItem;
 import com.grocerystore.api.cart.SavedCartService;
 import com.grocerystore.api.cart.SavedCartService.Line;
+import com.grocerystore.api.catalog.CatalogItem;
 import com.grocerystore.api.catalog.HubProduct;
 import com.grocerystore.api.catalog.HubProductRepository;
 import com.grocerystore.api.catalog.Product;
@@ -354,6 +356,29 @@ class AccountRewardsAssistantTest {
 
         assertThat(reply.items()).extracting(i -> i.productId()).containsExactly(small.getId());
         assertThat(planner.lastHistory.get(1).text()).contains("The list the shopper was shown").contains(name).contains("420 rupees");
+    }
+
+    @Test
+    void aLargeCatalogIsCutToAShortlistThatKeepsWhatMatters() {
+        List<CatalogItem> catalog = new ArrayList<>();
+        catalog.add(item(1L, "FV-TOM-500", "Tomato", null, "Fruit and vegetables"));
+        for (long id = 100; id < 700; id++) {
+            catalog.add(item(id, "OFF-" + id, "Wafer " + id, "Brand", "Snacks"));
+        }
+        catalog.add(item(900L, "OFF-900", "Dark chocolate", "Amul", "Biscuits and sweets"));
+        catalog.add(item(901L, "OFF-901", "Plain soda", "Fizz", "Beverages"));
+
+        List<CatalogItem> shortlist = AssistantService.shortlist(catalog,
+                new AskRequest("something with chocolates for the kids",
+                        List.of(new Turn("assistant", "Here you go.", List.of(new TurnItem(650L, 1))))), List.of());
+
+        assertThat(shortlist.size()).isLessThanOrEqualTo(220);
+        // The store's own food, the item already on the list, and the match for "chocolates" are all there.
+        assertThat(shortlist).extracting(CatalogItem::productId).contains(1L, 650L, 900L, 901L);
+    }
+
+    private static CatalogItem item(Long id, String sku, String name, String brand, String category) {
+        return new CatalogItem(id, sku, name, category, "1 pack", "VEG", false, null, 1000, 10, brand, null, null, 0, null);
     }
 
     @Test

@@ -210,3 +210,5 @@ tr:last-child td { border-bottom: 0; }
 .nutrition dd { margin: 0; font-weight: 700; }
 .nutrition dd .unit { font-weight: 400; }
 .nutrition .hint { margin: 8px 0 0; }
+
+.more { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0; }

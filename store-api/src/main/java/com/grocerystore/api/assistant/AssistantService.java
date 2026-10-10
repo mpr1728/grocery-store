@@ -131,6 +131,16 @@ public class AssistantService {
     // A nutrition plan is asked for again when any stated target is missed by more than this fraction.
     private static final double NUTRITION_TOLERANCE = 0.15;
     private static final int NUTRITION_RETRIES = 2;
+    // How much of a large catalog the model is shown: at most this many products in all, of which up to
+    // this many are branded products matching the shopper's words, plus a few per category.
+    private static final int SHORTLIST_SIZE = 220;
+    private static final int SHORTLIST_MATCHES = 120;
+    private static final int SHORTLIST_PER_CATEGORY = 8;
+    private static final String IMPORTED_SKU = "OFF-";
+    private static final Set<String> COMMON_WORDS = Set.of("with", "that", "this", "have", "from", "your", "what",
+            "want", "need", "please", "make", "some", "week", "weekly", "people", "person", "under", "rupees",
+            "grocery", "groceries", "list", "food", "items", "item", "they", "them", "more", "less", "than",
+            "about", "into", "also", "only", "just", "like", "family", "month", "monthly", "days", "budget");
     // Beyond this the shopper is told the list misses their targets. Closer than this is close enough.
     private static final double NUTRITION_WARNING = 0.25;
     private static final Pattern VEGETARIAN = Pattern.compile(
@@ -182,7 +192,9 @@ public class AssistantService {
                 .stream().collect(Collectors.toMap(Product::getId, Function.identity()));
         List<String> facts = memory.facts(customer.getId()).stream().map(MemoryService.Fact::fact).toList();
         List<String> bought = orders.recentlyBought(customer.getId());
-        String instructions = INSTRUCTIONS + catalogLines(catalog, details) + aboutShopper(facts, bought);
+        // The model reads a shortlist, not the whole catalog. Answers are still checked against all of it.
+        List<CatalogItem> shortlist = shortlist(catalog, request, facts);
+        String instructions = INSTRUCTIONS + catalogLines(shortlist, details) + aboutShopper(facts, bought);
         Map<Long, CatalogItem> byId = catalog.stream()
                 .collect(Collectors.toMap(CatalogItem::productId, Function.identity()));
         List<Turn> earlier = request.history() == null ? List.of() : request.history();
@@ -264,6 +276,77 @@ public class AssistantService {
                 : memory.remember(customer.getId(), plan.remember());
         return new AssistantReply(reply.reply(), reply.items(), reply.notStocked(), summary, List.copyOf(notes),
                 remembered);
+    }
+
+    /**
+     * The part of the catalog worth showing the model for this conversation: everything the store sells
+     * under its own name (fresh food and staples), whatever is already on the list being discussed, the
+     * branded products whose name, brand, or category shares a word with what the shopper said, and a few
+     * from every category so there is always something to choose from.
+     */
+    public static List<CatalogItem> shortlist(List<CatalogItem> catalog, AskRequest request, List<String> facts) {
+        if (catalog.size() <= SHORTLIST_SIZE) {
+            return catalog;
+        }
+        StringBuilder said = new StringBuilder(request.message());
+        Set<Long> onTheList = new HashSet<>();
+        if (request.history() != null) {
+            for (Turn turn : request.history()) {
+                if ("user".equals(turn.role())) {
+                    said.append(' ').append(turn.text());
+                }
+                if (turn.items() != null) {
+                    turn.items().forEach(item -> onTheList.add(item.productId()));
+                }
+            }
+        }
+        facts.forEach(fact -> said.append(' ').append(fact));
+        Set<String> words = new HashSet<>();
+        for (String word : said.toString().toLowerCase(Locale.ROOT).split("[^\\p{L}]+")) {
+            if (word.length() >= 4 && !COMMON_WORDS.contains(word)) {
+                // "biscuits" should find "biscuit".
+                words.add(word.endsWith("s") ? word.substring(0, word.length() - 1) : word);
+            }
+        }
+
+        Map<Long, CatalogItem> chosen = new LinkedHashMap<>();
+        List<CatalogItem> branded = new ArrayList<>();
+        for (CatalogItem item : catalog) {
+            if (!item.sku().startsWith(IMPORTED_SKU) || onTheList.contains(item.productId())) {
+                chosen.put(item.productId(), item);
+            } else if (item.available() > 0) {
+                branded.add(item);
+            }
+        }
+        Map<CatalogItem, Integer> scores = new LinkedHashMap<>();
+        for (CatalogItem item : branded) {
+            String text = (item.name() + ' ' + (item.brand() == null ? "" : item.brand()) + ' ' + item.category())
+                    .toLowerCase(Locale.ROOT);
+            int score = 0;
+            for (String word : words) {
+                if (text.contains(word)) {
+                    score++;
+                }
+            }
+            if (score > 0) {
+                scores.put(item, score);
+            }
+        }
+        scores.entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .limit(SHORTLIST_MATCHES)
+                .forEach(e -> chosen.putIfAbsent(e.getKey().productId(), e.getKey()));
+        Map<String, Integer> perCategory = new java.util.HashMap<>();
+        for (CatalogItem item : branded) {
+            if (chosen.size() >= SHORTLIST_SIZE) {
+                break;
+            }
+            if (!chosen.containsKey(item.productId())
+                    && perCategory.merge(item.category(), 1, Integer::sum) <= SHORTLIST_PER_CATEGORY) {
+                chosen.put(item.productId(), item);
+            }
+        }
+        return List.copyOf(chosen.values());
     }
 
     /** What is already known about this shopper, for the end of the instructions. Empty when nothing is. */
