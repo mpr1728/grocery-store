@@ -68,7 +68,21 @@ public class LambdaCartPlanner implements CartPlanner {
             }
         }
         JsonNode budget = root.path("budgetRupees");
+        JsonNode goal = root.path("nutritionGoal");
+        NutritionGoal nutritionGoal = !goal.isObject() ? null : new NutritionGoal(positive(goal, "people"),
+                positive(goal, "days"), positive(goal, "proteinG"), positive(goal, "fatG"),
+                positive(goal, "carbsG"), positive(goal, "fiberG"), positive(goal, "kcal"));
+        // A goal with no nutrient in it is no goal.
+        if (nutritionGoal != null && nutritionGoal.proteinG() == null && nutritionGoal.fatG() == null
+                && nutritionGoal.carbsG() == null && nutritionGoal.fiberG() == null && nutritionGoal.kcal() == null) {
+            nutritionGoal = null;
+        }
         return new Plan(root.path("reply").asText(""), items, notStocked,
-                budget.canConvertToInt() && budget.asInt() > 0 ? budget.asInt() : null);
+                budget.canConvertToInt() && budget.asInt() > 0 ? budget.asInt() : null, nutritionGoal);
+    }
+
+    private static Integer positive(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.canConvertToInt() && value.asInt() > 0 ? value.asInt() : null;
     }
 }

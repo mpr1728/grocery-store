@@ -4,8 +4,47 @@ import { api } from '../api';
 import { money } from '../format';
 import { MAX_PER_ITEM, useStore } from '../store';
 
-const EXAMPLES = ['Palak paneer for 4', 'Idli and sambar breakfast for 6', 'Basics for a week for two people'];
+const EXAMPLES = ['Palak paneer for 4', 'Weekly groceries for two under 1500 rupees', 'A week of vegetarian food with 70 g protein a day'];
 const HISTORY_TURNS = 10;
+
+const NUTRIENTS = [
+  ['proteinG', 'Protein', 'g'],
+  ['carbsG', 'Carbs', 'g'],
+  ['fatG', 'Fat', 'g'],
+  ['fiberG', 'Fibre', 'g'],
+  ['kcal', 'Energy', 'kcal']
+];
+
+/** What the suggested list contains, added up by the store from pack weights, next to any target given. */
+function Nutrition({ summary }) {
+  const daily = summary.perPersonPerDay;
+  const shown = daily || summary.total;
+  const target = summary.target || {};
+  return (
+    <div className="nutrition">
+      <strong>
+        {daily
+          ? `Per person per day (${summary.people} ${summary.people === 1 ? 'person' : 'people'}, ${summary.days} ${summary.days === 1 ? 'day' : 'days'})`
+          : 'In this whole list'}
+      </strong>
+      <dl>
+        {NUTRIENTS.map(([key, label, unit]) => (
+          <div key={key}>
+            <dt>{label}</dt>
+            <dd>
+              {shown[key].toLocaleString('en-IN')} {unit}
+              {daily && target[key] != null && <span className="unit">target {target[key].toLocaleString('en-IN')}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="hint">
+        Worked out from pack weights and per 100 g figures for the food as sold, before cooking. Approximate.
+        {summary.itemsNotCounted > 0 && ` ${summary.itemsNotCounted} ${summary.itemsNotCounted === 1 ? 'item has' : 'items have'} no figures and ${summary.itemsNotCounted === 1 ? 'is' : 'are'} not counted.`}
+      </p>
+    </div>
+  );
+}
 
 export default function Assistant() {
   const { hub, info, catalog, cart, setQuantity, account, loading } = useStore();
@@ -41,7 +80,12 @@ export default function Assistant() {
     if (question === '' || thinking) {
       return;
     }
-    const history = turns.slice(-HISTORY_TURNS).map((turn) => ({ role: turn.role, text: turn.text.slice(0, 1000) }));
+    // Each earlier answer goes back with the list it showed, so a follow-up changes that list.
+    const history = turns.slice(-HISTORY_TURNS).map((turn) => ({
+      role: turn.role,
+      text: turn.text.slice(0, 1000),
+      items: turn.items ? turn.items.map((item) => ({ productId: item.productId, quantity: item.quantity })) : null
+    }));
     setTurns((current) => [...current, { role: 'user', text: question }]);
     setMessage('');
     setThinking(true);
@@ -53,6 +97,8 @@ export default function Assistant() {
         text: answer.reply || 'Here is what I found.',
         items: answer.items,
         notStocked: answer.notStocked,
+        nutrition: answer.nutrition,
+        notes: answer.notes,
         added: false
       }]);
     } catch (e) {
@@ -77,7 +123,7 @@ export default function Assistant() {
   return (
     <div className="narrow chat">
       <h2>Shopping assistant</h2>
-      <p className="hint">Tell me what you want to cook or what you need. I will pick the items from this store for you.</p>
+      <p className="hint">Tell me what you want to cook or what you need. I will pick the items from this store for you. You can then ask me to change the list, for example "leave out the oil" or "keep it under 800 rupees".</p>
 
       {turns.length === 0 && (
         <div className="chips">
@@ -112,6 +158,8 @@ export default function Assistant() {
                   : <button className="small" onClick={() => addToCart(index)}>Add these to my cart</button>}
               </>
             )}
+            {turn.notes && turn.notes.map((note) => <p key={note} className="hint">{note}</p>)}
+            {turn.nutrition && <Nutrition summary={turn.nutrition} />}
             {turn.notStocked && turn.notStocked.length > 0 && (
               <p className="hint">Not available here: {turn.notStocked.join(', ')}.</p>
             )}

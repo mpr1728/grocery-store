@@ -22,8 +22,11 @@ import com.grocerystore.api.account.AccountDtos.SignedIn;
 import com.grocerystore.api.account.AccountService;
 import com.grocerystore.api.assistant.AssistantDtos.AskRequest;
 import com.grocerystore.api.assistant.AssistantDtos.AssistantReply;
+import com.grocerystore.api.assistant.AssistantDtos.Turn;
+import com.grocerystore.api.assistant.AssistantDtos.TurnItem;
 import com.grocerystore.api.assistant.AssistantService;
 import com.grocerystore.api.assistant.CartPlanner;
+import com.grocerystore.api.assistant.CartPlanner.NutritionGoal;
 import com.grocerystore.api.assistant.CartPlanner.Plan;
 import com.grocerystore.api.assistant.CartPlanner.PlannedItem;
 import com.grocerystore.api.cart.SavedCartService;
@@ -51,10 +54,11 @@ class AccountRewardsAssistantTest {
     /** Stands in for the model. Each test sets the plan it should return. */
     static class FakePlanner implements CartPlanner {
         Plan next;
+        List<Turn> lastHistory;
 
         @Override
-        public Plan plan(String instructions, List<com.grocerystore.api.assistant.AssistantDtos.Turn> history,
-                String message) {
+        public Plan plan(String instructions, List<Turn> history, String message) {
+            lastHistory = history;
             return next;
         }
     }
@@ -207,7 +211,7 @@ class AccountRewardsAssistantTest {
                 new PlannedItem(paneer.getId(), 40, "main ingredient"),
                 new PlannedItem(paneer.getId(), 1, "repeated"),
                 new PlannedItem(gongura.getId(), 1, "out of stock"),
-                new PlannedItem(987654321L, 2, "not a real product")), List.of("Fresh cream"), null);
+                new PlannedItem(987654321L, 2, "not a real product")), List.of("Fresh cream"), null, null);
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("palak paneer for 4", null));
 
@@ -221,7 +225,7 @@ class AccountRewardsAssistantTest {
         // An ingredient reported as missing that the store does have is added to the list instead.
         Product garlic = stocked("Garlic", 4000, 5);
         planner.next = new Plan("Here you go.", List.of(new PlannedItem(paneer.getId(), 1, "")),
-                List.of("garlic", "saffron"), null);
+                List.of("garlic", "saffron"), null, null);
         AssistantReply second = assistant.ask(hub.getId(), customer, new AskRequest("paneer curry", null));
         assertThat(second.items()).extracting(i -> i.productId()).containsExactly(paneer.getId(), garlic.getId());
         assertThat(second.notStocked()).containsExactly("saffron");
@@ -243,7 +247,7 @@ class AccountRewardsAssistantTest {
 
         // 2 rice (800) + 2 dal (300) + 7 milk, which is cut to 4 (120) = 1220 rupees against a 700 rupee limit.
         planner.next = new Plan("A week of basics.", List.of(new PlannedItem(rice.getId(), 2, ""),
-                new PlannedItem(dal.getId(), 2, ""), new PlannedItem(milk.getId(), 7, "")), List.of(), 700);
+                new PlannedItem(dal.getId(), 2, ""), new PlannedItem(milk.getId(), 7, "")), List.of(), 700, null);
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("weekly groceries under 700", null));
 
@@ -252,7 +256,7 @@ class AccountRewardsAssistantTest {
         assertThat(reply.items()).filteredOn(i -> i.productId().equals(milk.getId()))
                 .allSatisfy(i -> assertThat(i.quantity()).isLessThanOrEqualTo(4));
         assertThat(reply.items()).isNotEmpty();
-        assertThat(reply.reply()).contains("700");
+        assertThat(reply.notes()).anyMatch(note -> note.contains("700"));
     }
 
     @Test
@@ -268,19 +272,65 @@ class AccountRewardsAssistantTest {
             batches.save(new StockBatch(hub.getId(), product.getId(), "B" + product.getId(), Instant.now(clock), null, 10, "T-01"));
         }
         planner.next = new Plan("Basics for the week.", List.of(new PlannedItem(bigRice.getId(), 1, ""),
-                new PlannedItem(chips.getId(), 2, "")), List.of(), null);
+                new PlannedItem(chips.getId(), 2, "")), List.of(), null, null);
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("budget friendly weekly groceries", null));
 
         assertThat(reply.items()).extracting(i -> i.productId()).containsExactly(smallRice.getId());
-        assertThat(reply.reply()).contains("85 rupees").contains("Tell me an amount");
+        assertThat(reply.reply()).isEqualTo("Basics for the week.");
+        assertThat(reply.notes()).anyMatch(note -> note.contains("Tell me an amount"));
+    }
+
+    @Test
+    void nutritionIsAddedUpFromPackWeightsAndComparedWithTheTarget() {
+        Customer customer = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        Product dal = stocked("Protein dal " + System.nanoTime(), 18500, 10);
+        dal.setNutrition(1000, 22, 1.5, 63, 15, 343, "TYPICAL");
+        products.save(dal);
+        Product mystery = stocked("Mystery " + System.nanoTime(), 5000, 10);
+        // One 1 kg pack of dal holds 220 g of protein: about 31 g a day for one person over seven days.
+        planner.next = new Plan("High protein week.", List.of(new PlannedItem(dal.getId(), 1, ""),
+                new PlannedItem(mystery.getId(), 1, "")), List.of(), null,
+                new NutritionGoal(1, 7, 30, null, null, null, null));
+
+        AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("30 g protein a day for a week", null));
+
+        assertThat(reply.nutrition().total().proteinG()).isEqualTo(220);
+        assertThat(reply.nutrition().total().kcal()).isEqualTo(3430);
+        assertThat(reply.nutrition().perPersonPerDay().proteinG()).isEqualTo(31);
+        assertThat(reply.nutrition().target().proteinG()).isEqualTo(30);
+        assertThat(reply.nutrition().itemsNotCounted()).isEqualTo(1);
+    }
+
+    @Test
+    void aFollowUpKeepsTheBudgetAndShowsTheModelTheEarlierList() {
+        Customer customer = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        String name = "Follow rice " + System.nanoTime();
+        Product big = products.save(new Product("SKU-fb-" + System.nanoTime(), name, "Staples", "5 kg", "VEG", "AMBIENT", null, false, null));
+        Product small = products.save(new Product("SKU-fs-" + System.nanoTime(), name, "Staples", "1 kg", "VEG", "AMBIENT", null, false, null));
+        for (Object[] row : new Object[][] {{big, 42000}, {small, 8500}}) {
+            Product product = (Product) row[0];
+            hubProducts.save(new HubProduct(hub.getId(), product.getId(), (Integer) row[1]));
+            batches.save(new StockBatch(hub.getId(), product.getId(), "B" + product.getId(), Instant.now(clock), null, 10, "T-01"));
+        }
+        // The model names both pack sizes. Only one may stay, and the earlier budget request still applies.
+        planner.next = new Plan("Removed the oil.", List.of(new PlannedItem(big.getId(), 1, ""),
+                new PlannedItem(small.getId(), 1, "")), List.of(), null, null);
+        List<Turn> history = List.of(new Turn("user", "make it budget friendly", null),
+                new Turn("assistant", "Here is a list.", List.of(new TurnItem(big.getId(), 1))));
+
+        AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("oil is too much", history));
+
+        assertThat(reply.items()).extracting(i -> i.productId()).containsExactly(small.getId());
+        assertThat(planner.lastHistory.get(1).text()).contains("The list the shopper was shown").contains(name).contains("420 rupees");
     }
 
     @Test
     void theBudgetIsReadFromTheShoppersWords() {
         assertThat(AssistantService.statedBudget("weekly groceries for a family of 4 under 1000 rupees")).isEqualTo(1000);
         assertThat(AssistantService.statedBudget("groceries for Rs. 1,500")).isEqualTo(1500);
-        assertThat(AssistantService.statedBudget("\u20b9800 only")).isEqualTo(800);
+        assertThat(AssistantService.statedBudget("budget \u20b9800")).isEqualTo(800);
+        assertThat(AssistantService.statedBudget("this is \u20b91,936")).isNull();
         assertThat(AssistantService.statedBudget("palak paneer for 4")).isNull();
         assertThat(AssistantService.statedBudget("idli for 12 people, budget friendly")).isNull();
     }

@@ -1,5 +1,7 @@
 package com.grocerystore.api.catalog;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -44,6 +46,19 @@ public class Product {
     private String certificateNumber;
     @Column(name = "certificate_document_id")
     private Long certificateDocumentId;
+    @Column(name = "pack_grams")
+    private Integer packGrams;
+    @Column(name = "protein_g")
+    private BigDecimal proteinG;
+    @Column(name = "fat_g")
+    private BigDecimal fatG;
+    @Column(name = "carbs_g")
+    private BigDecimal carbsG;
+    @Column(name = "fiber_g")
+    private BigDecimal fiberG;
+    private BigDecimal kcal;
+    @Column(name = "nutrition_source")
+    private String nutritionSource;
 
     protected Product() {
     }
@@ -164,5 +179,46 @@ public class Product {
 
     public Long getCertificateDocumentId() {
         return certificateDocumentId;
+    }
+
+    /** Nutrition per 100 g as sold, with the net weight of one pack. */
+    public void setNutrition(Integer packGrams, double proteinG, double fatG, double carbsG, double fiberG,
+            double kcal, String source) {
+        this.packGrams = packGrams;
+        this.proteinG = BigDecimal.valueOf(proteinG);
+        this.fatG = BigDecimal.valueOf(fatG);
+        this.carbsG = BigDecimal.valueOf(carbsG);
+        this.fiberG = BigDecimal.valueOf(fiberG);
+        this.kcal = BigDecimal.valueOf(kcal);
+        this.nutritionSource = source;
+    }
+
+    /** True when the nutrition in a number of packs can be worked out. */
+    public boolean hasNutrition() {
+        return packGrams != null && proteinG != null && fatG != null && carbsG != null && kcal != null;
+    }
+
+    public Integer getPackGrams() {
+        return packGrams;
+    }
+
+    public BigDecimal getProteinG() {
+        return proteinG;
+    }
+
+    public BigDecimal getFatG() {
+        return fatG;
+    }
+
+    public BigDecimal getCarbsG() {
+        return carbsG;
+    }
+
+    public BigDecimal getFiberG() {
+        return fiberG;
+    }
+
+    public BigDecimal getKcal() {
+        return kcal;
     }
 }

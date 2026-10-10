@@ -9,8 +9,17 @@ public interface CartPlanner {
 
     Plan plan(String instructions, List<Turn> history, String message);
 
-    /** budgetRupees is the spending limit the shopper stated, or null when they gave none. */
-    record Plan(String reply, List<PlannedItem> items, List<String> notStocked, Integer budgetRupees) {
+    /**
+     * budgetRupees is the spending limit the shopper stated, or null when they gave none.
+     * goal holds nutrition targets the shopper stated, or null.
+     */
+    record Plan(String reply, List<PlannedItem> items, List<String> notStocked, Integer budgetRupees,
+            NutritionGoal goal) {
+    }
+
+    /** Daily targets per person, for a number of people and days. Any field may be null. */
+    record NutritionGoal(Integer people, Integer days, Integer proteinG, Integer fatG, Integer carbsG,
+            Integer fiberG, Integer kcal) {
     }
 
     record PlannedItem(long productId, int quantity, String note) {
