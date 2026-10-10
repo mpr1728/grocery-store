@@ -9,7 +9,8 @@ public interface CartPlanner {
 
     Plan plan(String instructions, List<Turn> history, String message);
 
-    record Plan(String reply, List<PlannedItem> items, List<String> notStocked) {
+    /** budgetRupees is the spending limit the shopper stated, or null when they gave none. */
+    record Plan(String reply, List<PlannedItem> items, List<String> notStocked, Integer budgetRupees) {
     }
 
     record PlannedItem(long productId, int quantity, String note) {

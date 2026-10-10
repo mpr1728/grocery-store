@@ -207,7 +207,7 @@ class AccountRewardsAssistantTest {
                 new PlannedItem(paneer.getId(), 40, "main ingredient"),
                 new PlannedItem(paneer.getId(), 1, "repeated"),
                 new PlannedItem(gongura.getId(), 1, "out of stock"),
-                new PlannedItem(987654321L, 2, "not a real product")), List.of("Fresh cream"));
+                new PlannedItem(987654321L, 2, "not a real product")), List.of("Fresh cream"), null);
 
         AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("palak paneer for 4", null));
 
@@ -217,10 +217,72 @@ class AccountRewardsAssistantTest {
             assertThat(item.pricePaise()).isEqualTo(9500);
         });
         assertThat(reply.notStocked()).containsExactly("Fresh cream", "Gongura (out of stock)");
+
+        // An ingredient reported as missing that the store does have is added to the list instead.
+        Product garlic = stocked("Garlic", 4000, 5);
+        planner.next = new Plan("Here you go.", List.of(new PlannedItem(paneer.getId(), 1, "")),
+                List.of("garlic", "saffron"), null);
+        AssistantReply second = assistant.ask(hub.getId(), customer, new AskRequest("paneer curry", null));
+        assertThat(second.items()).extracting(i -> i.productId()).containsExactly(paneer.getId(), garlic.getId());
+        assertThat(second.notStocked()).containsExactly("saffron");
     }
 
     private SignUpResponse signUp(String phone) {
         return accounts.signUp(new SignUpRequest("Asha", phone, phone + "@example.com", "correct horse"));
+    }
+
+    @Test
+    void assistantKeepsToAStatedBudgetAndDoesNotOverbuyFreshItems() {
+        Customer customer = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        Product rice = stocked("Rice", 40000, 10);
+        Product dal = stocked("Dal", 15000, 10);
+        Product milk = products.save(new Product("SKU-" + System.nanoTime(), "Milk", "Test", "500 ml", "VEG", "CHILLED",
+                2, false, null));
+        hubProducts.save(new HubProduct(hub.getId(), milk.getId(), 3000));
+        batches.save(new StockBatch(hub.getId(), milk.getId(), "B-milk", Instant.now(clock), null, 50, "T-01"));
+
+        // 2 rice (800) + 2 dal (300) + 7 milk, which is cut to 4 (120) = 1220 rupees against a 700 rupee limit.
+        planner.next = new Plan("A week of basics.", List.of(new PlannedItem(rice.getId(), 2, ""),
+                new PlannedItem(dal.getId(), 2, ""), new PlannedItem(milk.getId(), 7, "")), List.of(), 700);
+
+        AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("weekly groceries under 700", null));
+
+        long total = reply.items().stream().mapToLong(i -> (long) i.pricePaise() * i.quantity()).sum();
+        assertThat(total).isLessThanOrEqualTo(70000);
+        assertThat(reply.items()).filteredOn(i -> i.productId().equals(milk.getId()))
+                .allSatisfy(i -> assertThat(i.quantity()).isLessThanOrEqualTo(4));
+        assertThat(reply.items()).isNotEmpty();
+        assertThat(reply.reply()).contains("700");
+    }
+
+    @Test
+    void aShopperWatchingTheCostGetsTheSmallerPackAndNoTreats() {
+        Customer customer = accounts.require(AUTH_PREFIX + signUp(newPhone()).token());
+        String riceName = "Budget rice " + System.nanoTime();
+        Product bigRice = products.save(new Product("SKU-big-" + System.nanoTime(), riceName, "Staples", "5 kg", "VEG", "AMBIENT", null, false, null));
+        Product smallRice = products.save(new Product("SKU-small-" + System.nanoTime(), riceName, "Staples", "1 kg", "VEG", "AMBIENT", null, false, null));
+        Product chips = products.save(new Product("SKU-chips-" + System.nanoTime(), "Chips", "Snacks", "50 g", "VEG", "AMBIENT", null, false, null));
+        for (Object[] row : new Object[][] {{bigRice, 42000}, {smallRice, 8500}, {chips, 2000}}) {
+            Product product = (Product) row[0];
+            hubProducts.save(new HubProduct(hub.getId(), product.getId(), (Integer) row[1]));
+            batches.save(new StockBatch(hub.getId(), product.getId(), "B" + product.getId(), Instant.now(clock), null, 10, "T-01"));
+        }
+        planner.next = new Plan("Basics for the week.", List.of(new PlannedItem(bigRice.getId(), 1, ""),
+                new PlannedItem(chips.getId(), 2, "")), List.of(), null);
+
+        AssistantReply reply = assistant.ask(hub.getId(), customer, new AskRequest("budget friendly weekly groceries", null));
+
+        assertThat(reply.items()).extracting(i -> i.productId()).containsExactly(smallRice.getId());
+        assertThat(reply.reply()).contains("85 rupees").contains("Tell me an amount");
+    }
+
+    @Test
+    void theBudgetIsReadFromTheShoppersWords() {
+        assertThat(AssistantService.statedBudget("weekly groceries for a family of 4 under 1000 rupees")).isEqualTo(1000);
+        assertThat(AssistantService.statedBudget("groceries for Rs. 1,500")).isEqualTo(1500);
+        assertThat(AssistantService.statedBudget("\u20b9800 only")).isEqualTo(800);
+        assertThat(AssistantService.statedBudget("palak paneer for 4")).isNull();
+        assertThat(AssistantService.statedBudget("idli for 12 people, budget friendly")).isNull();
     }
 
     private int balance(SignUpResponse member) {

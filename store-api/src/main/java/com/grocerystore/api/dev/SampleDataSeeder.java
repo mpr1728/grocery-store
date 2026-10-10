@@ -82,6 +82,46 @@ public class SampleDataSeeder implements CommandLineRunner {
                 "Made in small batches.", 120, 18, "K-03");
         add(hub, today, "FK-CVM-400", "Cut vegetables, sambar mix", "Fresh kitchen", "400 g", "VEG", "CHILLED", 1, false,
                 "Cut today. Use by tomorrow.", 60, 15, "K-04");
+
+        // Everyday basics that most recipes need.
+        add(hub, today, "FV-GIN-100", "Ginger", "Fruit and vegetables", "100 g", "VEG", "PRODUCE", 14, false,
+                "Fresh, firm roots.", 15, 40, "P-06");
+        add(hub, today, "FV-GCH-100", "Green chilli", "Fruit and vegetables", "100 g", "VEG", "PRODUCE", 7, false,
+                "Medium hot.", 10, 40, "P-07");
+        add(hub, today, "FV-GAR-200", "Garlic", "Fruit and vegetables", "200 g", "VEG", "PRODUCE", 30, false,
+                "Whole bulbs.", 40, 40, "P-08");
+        add(hub, today, "FV-COR-100", "Coriander leaves", "Fruit and vegetables", "100 g", "VEG", "PRODUCE", 3, false,
+                "Cleaned bunch.", 15, 30, "P-09");
+        add(hub, today, "FV-CUL-50", "Curry leaves", "Fruit and vegetables", "50 g", "VEG", "PRODUCE", 5, false,
+                "Fresh sprigs.", 10, 30, "P-10");
+        add(hub, today, "FV-POT-1K", "Potato", "Fruit and vegetables", "1 kg", "VEG", "PRODUCE", 21, false,
+                "Medium size.", 35, 60, "P-11");
+        add(hub, today, "FV-LEM-4", "Lemon", "Fruit and vegetables", "4 pieces", "VEG", "PRODUCE", 10, false,
+                "Juicy, thin skinned.", 20, 40, "P-12");
+        add(hub, today, "FV-CAR-500", "Carrot", "Fruit and vegetables", "500 g", "VEG", "PRODUCE", 7, false,
+                "Orange, washed.", 30, 40, "P-13");
+        add(hub, today, "ST-RIC-1K", "Sona Masoori rice", "Staples", "1 kg", "VEG", "AMBIENT", null, true,
+                "Aged 12 months. House brand.", 85, 50, "A-06");
+        add(hub, today, "ST-ATT-1K", "Whole wheat atta", "Staples", "1 kg", "VEG", "AMBIENT", null, true,
+                "Stone ground chakki atta. House brand.", 60, 50, "A-07");
+        add(hub, today, "ST-CUP-100", "Cumin powder", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Ground in small batches. House brand.", 60, 40, "A-08");
+        add(hub, today, "ST-COP-100", "Coriander powder", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Ground in small batches. House brand.", 40, 40, "A-09");
+        add(hub, today, "ST-RCP-100", "Red chilli powder", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Tested for added colour. House brand.", 50, 40, "A-10");
+        add(hub, today, "ST-GMS-100", "Garam masala", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Whole spices, roasted and ground. House brand.", 75, 30, "A-11");
+        add(hub, today, "ST-MUS-100", "Mustard seeds", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Small black seeds. House brand.", 25, 40, "A-12");
+        add(hub, today, "ST-CUM-100", "Cumin seeds", "Staples", "100 g", "VEG", "AMBIENT", null, true,
+                "Cleaned and sorted. House brand.", 55, 40, "A-13");
+        add(hub, today, "ST-SLT-1K", "Salt, iodised", "Staples", "1 kg", "VEG", "AMBIENT", null, true,
+                "Free flowing. House brand.", 25, 60, "A-14");
+        add(hub, today, "ST-SGR-1K", "Sugar", "Staples", "1 kg", "VEG", "AMBIENT", null, true,
+                "Sulphur free. House brand.", 48, 60, "A-15");
+        add(hub, today, "ST-TAM-200", "Tamarind", "Staples", "200 g", "VEG", "AMBIENT", null, true,
+                "Seedless. House brand.", 45, 30, "A-16");
     }
 
     private void add(Hub hub, LocalDate today, String sku, String name, String category, String unit, String diet,

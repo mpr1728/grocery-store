@@ -67,6 +67,8 @@ public class LambdaCartPlanner implements CartPlanner {
                 notStocked.add(name.asText());
             }
         }
-        return new Plan(root.path("reply").asText(""), items, notStocked);
+        JsonNode budget = root.path("budgetRupees");
+        return new Plan(root.path("reply").asText(""), items, notStocked,
+                budget.canConvertToInt() && budget.asInt() > 0 ? budget.asInt() : null);
     }
 }

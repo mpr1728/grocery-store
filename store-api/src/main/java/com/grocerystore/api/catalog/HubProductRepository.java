@@ -22,7 +22,8 @@ public interface HubProductRepository extends JpaRepository<HubProduct, Long> {
                 p.brand, p.imageUrl, p.growingMethod,
                 (select count(t) from StockBatch t
                  where t.hubId = hp.hubId and t.productId = p.id and t.quantity > 0
-                   and (t.useBy is null or t.useBy >= :today) and t.testResult is not null))
+                   and (t.useBy is null or t.useBy >= :today) and t.testResult is not null),
+                p.shelfLifeDays)
             from HubProduct hp join Product p on p.id = hp.productId
             where hp.hubId = :hubId and hp.active = true
               and (:category is null or p.category = :category)
