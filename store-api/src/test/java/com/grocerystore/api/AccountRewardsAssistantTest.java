@@ -382,6 +382,17 @@ class AccountRewardsAssistantTest {
     }
 
     @Test
+    void nutritionTargetsAreReadFromTheShoppersWords() {
+        NutritionGoal goal = AssistantService.statedGoal(
+                "I am vegetarian and live alone. A week of groceries with 70 g protein, 60 g fat, 250 g carbs and 30 g fibre a day");
+        assertThat(goal).isEqualTo(new NutritionGoal(1, 7, 70, 60, 250, 30, null));
+        assertThat(AssistantService.statedGoal("high protein food for 4 people, 80 grams of protein and 2200 kcal each"))
+                .isEqualTo(new NutritionGoal(4, 7, 80, null, null, null, 2200));
+        assertThat(AssistantService.statedGoal("palak paneer for 4")).isNull();
+        assertThat(AssistantService.statedGoal("500 g paneer and 1 kg rice")).isNull();
+    }
+
+    @Test
     void theBudgetIsReadFromTheShoppersWords() {
         assertThat(AssistantService.statedBudget("weekly groceries for a family of 4 under 1000 rupees")).isEqualTo(1000);
         assertThat(AssistantService.statedBudget("groceries for Rs. 1,500")).isEqualTo(1500);

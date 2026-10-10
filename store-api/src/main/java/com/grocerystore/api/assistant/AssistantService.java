@@ -143,6 +143,10 @@ public class AssistantService {
             "about", "into", "also", "only", "just", "like", "family", "month", "monthly", "days", "budget");
     // Beyond this the shopper is told the list misses their targets. Closer than this is close enough.
     private static final double NUTRITION_WARNING = 0.25;
+    private static final Pattern NUTRIENT_GRAMS = Pattern.compile(
+            "([0-9]{1,4})\\s*(?:g|gm|gms|grams?)\\s*(?:of\\s+)?(protein|fat|carb|fibre|fiber)");
+    private static final Pattern ENERGY = Pattern.compile("([0-9]{3,5})\\s*(?:kcal|calories|cal\\b)");
+    private static final Pattern PEOPLE = Pattern.compile("(?:for|family of)\\s+([0-9]{1,2})\\s*(?:people|persons|adults|members)?\\b(?!\\s*(?:g|days?|weeks?|rupees))");
     private static final Pattern VEGETARIAN = Pattern.compile(
             "\\bvegetarian\\b|\\bveg only\\b|\\bpure veg\\b|\\beggless\\b|\\bno eggs?\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern NON_VEGETARIAN = Pattern.compile("non.?veg", Pattern.CASE_INSENSITIVE);
@@ -215,7 +219,8 @@ public class AssistantService {
         List<String> notes = new ArrayList<>();
 
         // Nutrition targets: the server adds up what the list really contains and asks once more if it is off.
-        NutritionGoal goal = plan.goal();
+        // Targets are read from the shopper's own words when the model does not hand them back.
+        NutritionGoal goal = plan.goal() != null ? plan.goal() : statedGoal(message);
         for (int attempt = 0; goal != null && attempt < NUTRITION_RETRIES; attempt++) {
             NutritionSummary current = nutrition(reply.items(), details, goal);
             if (miss(current) <= NUTRITION_TOLERANCE) {
@@ -461,6 +466,39 @@ public class AssistantService {
             }
         }
         return text.append(" Change products and quantities so every target is met within ten percent.").toString();
+    }
+
+    /**
+     * Nutrition targets written out in a message, such as "70 g protein, 60 g fat and 2000 kcal a day", for
+     * one person over a week unless the message gives a number of people. Null when it names none.
+     */
+    public static NutritionGoal statedGoal(String message) {
+        String text = message.toLowerCase(Locale.ROOT);
+        Integer protein = null;
+        Integer fat = null;
+        Integer carbs = null;
+        Integer fiber = null;
+        Matcher grams = NUTRIENT_GRAMS.matcher(text);
+        while (grams.find()) {
+            int amount = Integer.parseInt(grams.group(1));
+            String nutrient = grams.group(2);
+            if (nutrient.startsWith("protein")) {
+                protein = amount;
+            } else if (nutrient.startsWith("fat")) {
+                fat = amount;
+            } else if (nutrient.startsWith("carb")) {
+                carbs = amount;
+            } else {
+                fiber = amount;
+            }
+        }
+        Matcher energy = ENERGY.matcher(text);
+        Integer kcal = energy.find() ? Integer.valueOf(energy.group(1)) : null;
+        if (protein == null && fat == null && carbs == null && fiber == null && kcal == null) {
+            return null;
+        }
+        Matcher people = PEOPLE.matcher(text);
+        return new NutritionGoal(people.find() ? Integer.valueOf(people.group(1)) : 1, 7, protein, fat, carbs, fiber, kcal);
     }
 
     /** The spending limit in the shopper's message, such as "under 1000", "Rs 800", or "1500 rupees", or null. */
