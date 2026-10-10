@@ -57,6 +57,11 @@ export function StoreProvider({ children }) {
     setAccount(null);
     // The cart stays saved with the account. This browser starts empty for whoever uses it next.
     setCart({});
+    try {
+      sessionStorage.removeItem('assistant.chat.v1');
+    } catch (e) {
+      // Nothing to clear.
+    }
   }, []);
 
   // A signed-in customer's cart is kept with their account, so it is there on their next visit and on

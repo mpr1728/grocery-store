@@ -6,6 +6,16 @@ import { MAX_PER_ITEM, useStore } from '../store';
 
 const EXAMPLES = ['Palak paneer for 4', 'Weekly groceries for two under 1500 rupees', 'A week of vegetarian food with 70 g protein a day'];
 const HISTORY_TURNS = 10;
+export const CHAT_KEY = 'assistant.chat.v1';
+
+function loadChat() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(CHAT_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch (e) {
+    return [];
+  }
+}
 
 const NUTRIENTS = [
   ['proteinG', 'Protein', 'g'],
@@ -49,11 +59,26 @@ function Nutrition({ summary }) {
 export default function Assistant() {
   const { hub, info, catalog, cart, setQuantity, account, loading } = useStore();
   // Each turn is { role: 'user' | 'assistant', text, items, notStocked, added }.
-  const [turns, setTurns] = useState([]);
+  // The conversation is kept for this browser tab, so it is still here after a look at the cart.
+  const [turns, setTurns] = useState(loadChat);
   const [message, setMessage] = useState('');
   const [thinking, setThinking] = useState(false);
   const [problem, setProblem] = useState(null);
   const bottom = useRef(null);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHAT_KEY, JSON.stringify(turns));
+    } catch (e) {
+      // The chat still works for this visit if it cannot be kept.
+    }
+  }, [turns]);
+
+  function clearChat() {
+    setTurns([]);
+    setProblem(null);
+    setMessage('');
+  }
 
   useEffect(() => {
     if (bottom.current) {
@@ -123,7 +148,10 @@ export default function Assistant() {
 
   return (
     <div className="narrow chat">
-      <h2>Shopping assistant</h2>
+      <div className="cart-head">
+        <h2>Shopping assistant</h2>
+        {turns.length > 0 && <button className="link" onClick={clearChat}>Clear chat</button>}
+      </div>
       <p className="hint">Tell me what you want to cook or what you need. I will pick the items from this store for you. You can then ask me to change the list, for example "leave out the oil" or "keep it under 800 rupees".</p>
 
       {turns.length === 0 && (
