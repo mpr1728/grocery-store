@@ -1,0 +1,166 @@
+-- Panyaloka Fashion: cotton garments designed by the customer, coloured with plant dyes, made to their measurements.
+-- Shares customers and sessions with Panyaloka Fresh, so one account works in both sections.
+
+CREATE TABLE fashion_garments (
+  code VARCHAR(20) PRIMARY KEY,
+  name VARCHAR(60) NOT NULL,
+  description VARCHAR(300) NOT NULL,
+  base_price_paise INT NOT NULL,
+  making_days INT NOT NULL,
+  sort_order INT NOT NULL,
+  active BOOLEAN NOT NULL
+);
+
+-- The choices for each part of a garment. A design picks exactly one per part.
+CREATE TABLE fashion_options (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  garment_code VARCHAR(20) NOT NULL,
+  part VARCHAR(20) NOT NULL,
+  code VARCHAR(20) NOT NULL,
+  label VARCHAR(60) NOT NULL,
+  surcharge_paise INT NOT NULL,
+  is_default BOOLEAN NOT NULL,
+  sort_order INT NOT NULL,
+  CONSTRAINT uq_fashion_options UNIQUE (garment_code, part, code),
+  CONSTRAINT fk_fashion_options_garment FOREIGN KEY (garment_code) REFERENCES fashion_garments (code)
+);
+
+CREATE TABLE fashion_fabrics (
+  code VARCHAR(20) PRIMARY KEY,
+  name VARCHAR(60) NOT NULL,
+  description VARCHAR(300) NOT NULL,
+  surcharge_paise INT NOT NULL,
+  sort_order INT NOT NULL,
+  active BOOLEAN NOT NULL
+);
+
+-- The dye palette. available is switched off when the dye house runs out of a shade.
+CREATE TABLE fashion_colours (
+  code VARCHAR(20) PRIMARY KEY,
+  name VARCHAR(60) NOT NULL,
+  dye_source VARCHAR(200) NOT NULL,
+  hex VARCHAR(7) NOT NULL,
+  sort_order INT NOT NULL,
+  available BOOLEAN NOT NULL
+);
+
+-- One saved set of measurements per customer, in whole centimetres.
+CREATE TABLE fashion_measurements (
+  customer_id BIGINT PRIMARY KEY,
+  bust_cm INT NOT NULL,
+  waist_cm INT NOT NULL,
+  hip_cm INT NOT NULL,
+  shoulder_cm INT NOT NULL,
+  height_cm INT NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  CONSTRAINT fk_fashion_measurements_customer FOREIGN KEY (customer_id) REFERENCES customers (id)
+);
+
+-- An order is one garment. Names, prices, and measurements are copied in, so later catalog changes do not alter it.
+CREATE TABLE fashion_orders (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  order_number VARCHAR(20) NOT NULL,
+  customer_id BIGINT NOT NULL,
+  garment_code VARCHAR(20) NOT NULL,
+  garment_name VARCHAR(60) NOT NULL,
+  neckline VARCHAR(60) NOT NULL,
+  sleeve VARCHAR(60) NOT NULL,
+  garment_length VARCHAR(60) NOT NULL,
+  fit VARCHAR(60) NOT NULL,
+  fabric VARCHAR(60) NOT NULL,
+  colour VARCHAR(60) NOT NULL,
+  colour_hex VARCHAR(7) NOT NULL,
+  design_codes VARCHAR(200) NOT NULL,
+  bust_cm INT NOT NULL,
+  waist_cm INT NOT NULL,
+  hip_cm INT NOT NULL,
+  shoulder_cm INT NOT NULL,
+  height_cm INT NOT NULL,
+  body_shape VARCHAR(20) NOT NULL,
+  base_price_paise INT NOT NULL,
+  extras_paise INT NOT NULL,
+  shipping_paise INT NOT NULL,
+  total_paise INT NOT NULL,
+  contact_phone VARCHAR(20) NOT NULL,
+  delivery_address VARCHAR(300) NOT NULL,
+  notes VARCHAR(300),
+  status VARCHAR(20) NOT NULL,
+  placed_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  ready_by DATE NOT NULL,
+  CONSTRAINT uq_fashion_orders_number UNIQUE (order_number),
+  CONSTRAINT fk_fashion_orders_customer FOREIGN KEY (customer_id) REFERENCES customers (id)
+);
+CREATE INDEX ix_fashion_orders_customer ON fashion_orders (customer_id, id);
+CREATE INDEX ix_fashion_orders_status ON fashion_orders (status, id);
+
+-- Starting range. Prices are illustrative, in paise, and include tax.
+INSERT INTO fashion_garments (code, name, description, base_price_paise, making_days, sort_order, active) VALUES
+('KURTI', 'Kurti', 'An everyday kurti cut to your measurements. Pairs with leggings, palazzos, or jeans.', 149000, 10, 1, TRUE),
+('TOP', 'Top', 'A light cotton top for work or weekends.', 99000, 7, 2, TRUE),
+('FROCK', 'Frock', 'A dress with a fitted bodice and a skirt shape of your choice.', 179000, 12, 3, TRUE);
+
+INSERT INTO fashion_options (garment_code, part, code, label, surcharge_paise, is_default, sort_order) VALUES
+('KURTI', 'NECKLINE', 'ROUND', 'Round', 0, TRUE, 1),
+('KURTI', 'NECKLINE', 'V', 'V neck', 0, FALSE, 2),
+('KURTI', 'NECKLINE', 'BOAT', 'Boat', 10000, FALSE, 3),
+('KURTI', 'NECKLINE', 'MANDARIN', 'Mandarin collar', 15000, FALSE, 4),
+('KURTI', 'NECKLINE', 'KEYHOLE', 'Keyhole', 15000, FALSE, 5),
+('KURTI', 'SLEEVE', 'SLEEVELESS', 'Sleeveless', 0, FALSE, 1),
+('KURTI', 'SLEEVE', 'CAP', 'Cap', 0, FALSE, 2),
+('KURTI', 'SLEEVE', 'ELBOW', 'Elbow', 0, TRUE, 3),
+('KURTI', 'SLEEVE', 'THREE_QUARTER', 'Three quarter', 5000, FALSE, 4),
+('KURTI', 'SLEEVE', 'FULL', 'Full', 10000, FALSE, 5),
+('KURTI', 'LENGTH', 'HIP', 'Hip', 0, FALSE, 1),
+('KURTI', 'LENGTH', 'KNEE', 'Knee', 0, TRUE, 2),
+('KURTI', 'LENGTH', 'CALF', 'Calf', 15000, FALSE, 3),
+('KURTI', 'LENGTH', 'ANKLE', 'Ankle', 25000, FALSE, 4),
+('KURTI', 'FIT', 'STRAIGHT', 'Straight', 0, TRUE, 1),
+('KURTI', 'FIT', 'A_LINE', 'A-line', 15000, FALSE, 2),
+('KURTI', 'FIT', 'FLARED', 'Flared', 30000, FALSE, 3),
+('TOP', 'NECKLINE', 'ROUND', 'Round', 0, TRUE, 1),
+('TOP', 'NECKLINE', 'V', 'V neck', 0, FALSE, 2),
+('TOP', 'NECKLINE', 'BOAT', 'Boat', 10000, FALSE, 3),
+('TOP', 'NECKLINE', 'SQUARE', 'Square', 10000, FALSE, 4),
+('TOP', 'SLEEVE', 'SLEEVELESS', 'Sleeveless', 0, FALSE, 1),
+('TOP', 'SLEEVE', 'CAP', 'Cap', 0, TRUE, 2),
+('TOP', 'SLEEVE', 'ELBOW', 'Elbow', 0, FALSE, 3),
+('TOP', 'SLEEVE', 'FULL', 'Full', 10000, FALSE, 4),
+('TOP', 'LENGTH', 'CROP', 'Cropped', 0, FALSE, 1),
+('TOP', 'LENGTH', 'WAIST', 'Waist', 0, TRUE, 2),
+('TOP', 'LENGTH', 'HIP', 'Hip', 5000, FALSE, 3),
+('TOP', 'FIT', 'RELAXED', 'Relaxed', 0, TRUE, 1),
+('TOP', 'FIT', 'FITTED', 'Fitted', 10000, FALSE, 2),
+('TOP', 'FIT', 'PEPLUM', 'Peplum', 20000, FALSE, 3),
+('FROCK', 'NECKLINE', 'ROUND', 'Round', 0, TRUE, 1),
+('FROCK', 'NECKLINE', 'V', 'V neck', 0, FALSE, 2),
+('FROCK', 'NECKLINE', 'SQUARE', 'Square', 10000, FALSE, 3),
+('FROCK', 'NECKLINE', 'SWEETHEART', 'Sweetheart', 15000, FALSE, 4),
+('FROCK', 'SLEEVE', 'SLEEVELESS', 'Sleeveless', 0, FALSE, 1),
+('FROCK', 'SLEEVE', 'CAP', 'Cap', 0, FALSE, 2),
+('FROCK', 'SLEEVE', 'PUFF', 'Puff', 15000, FALSE, 3),
+('FROCK', 'SLEEVE', 'ELBOW', 'Elbow', 0, TRUE, 4),
+('FROCK', 'LENGTH', 'KNEE', 'Knee', 0, TRUE, 1),
+('FROCK', 'LENGTH', 'MIDI', 'Midi', 20000, FALSE, 2),
+('FROCK', 'LENGTH', 'MAXI', 'Maxi', 40000, FALSE, 3),
+('FROCK', 'FIT', 'A_LINE', 'A-line', 0, TRUE, 1),
+('FROCK', 'FIT', 'FIT_AND_FLARE', 'Fit and flare', 20000, FALSE, 2),
+('FROCK', 'FIT', 'TIERED', 'Tiered', 40000, FALSE, 3);
+
+INSERT INTO fashion_fabrics (code, name, description, surcharge_paise, sort_order, active) VALUES
+('MULMUL', 'Cotton mulmul', 'Very light and soft. Best for hot days. Slightly sheer in pale shades.', 0, 1, TRUE),
+('POPLIN', 'Cotton poplin', 'Smooth and crisp, holds a shape. Not sheer.', 10000, 2, TRUE),
+('CAMBRIC', 'Cotton cambric', 'Fine and dense with a soft sheen. Good for structured shapes.', 15000, 3, TRUE),
+('KHADI', 'Handspun khadi', 'Hand spun and hand woven, with a natural slub texture. Softens with every wash.', 35000, 4, TRUE);
+
+INSERT INTO fashion_colours (code, name, dye_source, hex, sort_order, available) VALUES
+('INDIGO_DEEP', 'Deep indigo', 'Indigo leaf', '#24344f', 1, TRUE),
+('INDIGO_SKY', 'Sky indigo', 'Indigo leaf, light dip', '#7f9dbb', 2, TRUE),
+('MADDER', 'Madder red', 'Madder root with alum', '#9e3b2c', 3, TRUE),
+('LAC', 'Lac pink', 'Lac resin', '#b4566a', 4, TRUE),
+('TURMERIC', 'Turmeric yellow', 'Turmeric root', '#d9a62e', 5, TRUE),
+('MARIGOLD', 'Marigold', 'Marigold flowers', '#c98a2b', 6, TRUE),
+('LEAF_GREEN', 'Leaf green', 'Indigo over pomegranate rind', '#5f7650', 7, TRUE),
+('CUTCH', 'Cutch brown', 'Cutch (kattha) bark extract', '#7a4b33', 8, TRUE),
+('IRON_GREY', 'Iron grey', 'Myrobalan with iron', '#55524c', 9, TRUE),
+('UNDYED', 'Undyed natural', 'No dye, the cotton''s own colour', '#ece4d2', 10, TRUE);
