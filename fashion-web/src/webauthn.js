@@ -26,7 +26,10 @@ export function deviceLabel() {
   return browser ? `${device}, ${browser}` : device;
 }
 
-/** Asks the device to make a passkey. Returns the answer as JSON for the API. */
+/**
+ * Asks for a new passkey. The browser lets the customer keep it on this device, in their password manager, on a
+ * phone (by scanning a QR code), or on a security key. Returns the answer as JSON for the API.
+ */
 export async function createPasskey(optionsJson) {
   const { publicKey } = JSON.parse(optionsJson);
   publicKey.challenge = fromBase64Url(publicKey.challenge);
@@ -42,8 +45,15 @@ export async function createPasskey(optionsJson) {
       attestationObject: toBase64Url(credential.response.attestationObject),
       transports: credential.response.getTransports ? credential.response.getTransports() : []
     },
+    // "platform" when kept on this device, "cross-platform" for a phone or security key.
+    authenticatorAttachment: credential.authenticatorAttachment || undefined,
     clientExtensionResults: credential.getClientExtensionResults()
   });
+}
+
+/** A name for a new passkey: this device, or a phone or security key used through the browser's prompt. */
+export function passkeyLabel(answerJson) {
+  return JSON.parse(answerJson).authenticatorAttachment === 'cross-platform' ? 'Phone or security key' : deviceLabel();
 }
 
 /** Asks the device to sign in with any passkey it holds for this site. Returns the answer as JSON for the API. */

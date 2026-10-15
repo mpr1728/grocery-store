@@ -167,7 +167,7 @@ export default function SignIn({ onSignedIn, brand }) {
         <>
           <p className="or"><span>or</span></p>
           <button className="secondary" onClick={withPasskey} disabled={working}>Sign in with a passkey</button>
-          <p className="hint center">Uses Face ID, Touch ID, or your phone's screen lock. Add one from your account page after signing in.</p>
+          <p className="hint center">Use Face ID, Touch ID, or your screen lock, on this device or on your phone by scanning a QR code. Add a passkey from your account page after signing in.</p>
         </>
       )}
       <p className="hint center"><button className="link" onClick={() => { setStep('password'); setProblem(null); }}>Use a password instead</button></p>

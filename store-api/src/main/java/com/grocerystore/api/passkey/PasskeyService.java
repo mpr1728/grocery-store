@@ -133,7 +133,8 @@ public class PasskeyService {
             log.info("Passkey registration refused: {}", e.getMessage());
             throw new BadRequestException("That passkey could not be added. Please try again.");
         }
-        String label = response.label() == null || response.label().isBlank() ? "Passkey" : response.label().trim();
+        String label = PasskeyProviders.nameOf(result.getAaguid())
+                .orElse(response.label() == null || response.label().isBlank() ? "Passkey" : response.label().trim());
         Passkey saved = passkeys.save(new Passkey(customerId, result.getKeyId().getId().getBase64Url(),
                 result.getPublicKeyCose().getBase64Url(), result.getSignatureCount(), label, Instant.now(clock)));
         return view(saved);
