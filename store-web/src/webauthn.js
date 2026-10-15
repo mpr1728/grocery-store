@@ -12,6 +12,50 @@ function toBase64Url(buffer) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+import { useEffect, useState } from 'react';
+
+/**
+ * What this device unlocks with, in the words its owner knows. Browsers do not say which sensor a device has, so
+ * this goes by the kind of device; an iPhone may have Face ID or Touch ID, so both are named.
+ */
+function unlockFor(ua, touchScreen) {
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touchScreen)) {
+    // iPads report themselves as Macs but have a touch screen.
+    return { name: 'Face ID or Touch ID', button: 'Face ID or Touch ID', phone: true };
+  }
+  if (/Macintosh/.test(ua)) {
+    return { name: 'Touch ID', button: 'Touch ID' };
+  }
+  if (/Android/.test(ua)) {
+    return { name: 'your fingerprint or face unlock', button: 'fingerprint or face', phone: true };
+  }
+  if (/Windows/.test(ua)) {
+    return { name: 'Windows Hello (face, fingerprint, or PIN)', button: 'Windows Hello' };
+  }
+  return { name: 'your screen lock', button: 'a passkey' };
+}
+
+/** When the device has no unlock of its own, a passkey still works from a phone (QR code) or a security key. */
+const ELSEWHERE = { name: 'your phone (scan a QR code) or a security key', button: 'a passkey', elsewhere: true };
+
+/**
+ * How this device signs in with a passkey: { name, button, elsewhere }. Starts with a guess from the device type and
+ * corrects it once the browser says whether a built-in unlock is set up.
+ */
+export function useUnlockMethod() {
+  const guess = typeof navigator === 'undefined' ? ELSEWHERE : unlockFor(navigator.userAgent, navigator.maxTouchPoints > 1);
+  const [method, setMethod] = useState(guess);
+  useEffect(() => {
+    if (!passkeysSupported() || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+      return;
+    }
+    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+      .then((builtIn) => setMethod(builtIn ? unlockFor(navigator.userAgent, navigator.maxTouchPoints > 1) : ELSEWHERE))
+      .catch(() => {});
+  }, []);
+  return method;
+}
+
 export function passkeysSupported() {
   return typeof window !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials;
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { api } from './api';
 import PhoneField, { phoneIsEmpty, phoneIsValid } from './PhoneField';
-import { passkeysSupported, usePasskey, wasCancelled } from './webauthn';
+import { passkeysSupported, usePasskey, useUnlockMethod, wasCancelled } from './webauthn';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,6 +26,7 @@ export default function SignIn({ onSignedIn, brand }) {
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState(null);
   const [note, setNote] = useState(null);
+  const unlock = useUnlockMethod();
 
   async function attempt(action) {
     setWorking(true);
@@ -166,8 +167,15 @@ export default function SignIn({ onSignedIn, brand }) {
       {passkeysSupported() && (
         <>
           <p className="or"><span>or</span></p>
-          <button className="secondary" onClick={withPasskey} disabled={working}>Sign in with a passkey</button>
-          <p className="hint center">Use Face ID, Touch ID, or your screen lock, on this device or on your phone by scanning a QR code. Add a passkey from your account page after signing in.</p>
+          <button className="secondary" onClick={withPasskey} disabled={working}>Sign in with {unlock.button}</button>
+          <p className="hint center">
+            {unlock.elsewhere
+              ? <>Use a passkey on {unlock.name}.</>
+              : unlock.phone
+                ? <>Uses {unlock.name}.</>
+                : <>Uses {unlock.name} on this device, or your phone by scanning a QR code.</>}
+            {' '}Set it up from your account page after signing in.
+          </p>
         </>
       )}
       <p className="hint center"><button className="link" onClick={() => { setStep('password'); setProblem(null); }}>Use a password instead</button></p>

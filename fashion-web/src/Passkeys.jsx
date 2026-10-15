@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api';
-import { createPasskey, passkeyLabel, passkeysSupported, wasCancelled } from './webauthn';
+import { createPasskey, passkeyLabel, passkeysSupported, useUnlockMethod, wasCancelled } from './webauthn';
 
 const day = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -10,6 +10,7 @@ export default function Passkeys() {
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState(null);
   const [note, setNote] = useState(null);
+  const unlock = useUnlockMethod();
 
   const load = () => api.passkeys().then(setList).catch(() => setList([]));
   useEffect(() => { load(); }, []);
@@ -22,7 +23,7 @@ export default function Passkeys() {
       const options = await api.passkeyOptions();
       const answer = await createPasskey(options.optionsJson);
       await api.addPasskey(options.ceremonyId, answer, passkeyLabel(answer));
-      setNote('Passkey added. Next time, choose "Sign in with a passkey" on any device that can reach it.');
+      setNote(`Done. Next time, choose "Sign in with ${unlock.button}".`);
       load();
     } catch (e) {
       if (!wasCancelled(e)) {
@@ -45,10 +46,12 @@ export default function Passkeys() {
     <>
       <h3>Passkeys</h3>
       <p className="hint">
-        Sign in with Face ID, Touch ID, a fingerprint, or your screen lock instead of an email code. When you add one,
-        your browser lets you keep it on this device, in a password manager (iCloud Keychain, Google Password Manager,
-        1Password, and others), on your phone by scanning a QR code, or on a security key. Passkeys in iCloud or Google
-        sync to your other devices on the same account.
+        {unlock.elsewhere
+          ? <>This device has no built-in unlock set up, so keep your passkey on {unlock.name}.</>
+          : <>Sign in with {unlock.name} instead of an email code.</>}
+        {' '}When you add one, your browser also offers a password manager (iCloud Keychain, Google Password Manager,
+        1Password, and others), another phone by QR code, or a security key. Passkeys in iCloud or Google sync to your
+        other devices on the same account.
       </p>
       {list && list.length > 0 && (
         <ul className="lines">
@@ -66,7 +69,7 @@ export default function Passkeys() {
       {note && <p className="hint">{note}</p>}
       {problem && <p className="notice error" role="alert">{problem}</p>}
       {passkeysSupported()
-        ? <p><button className="secondary" onClick={add} disabled={working}>{working ? 'Waiting for your passkey…' : 'Add a passkey'}</button></p>
+        ? <p><button className="secondary" onClick={add} disabled={working}>{working ? 'Waiting for your passkey…' : unlock.elsewhere ? 'Add a passkey' : `Set up ${unlock.button} sign-in`}</button></p>
         : <p className="hint">This browser does not support passkeys.</p>}
     </>
   );
