@@ -25,6 +25,8 @@ public class Customer {
     private String passwordHash;
     @Column(name = "points_balance")
     private int pointsBalance;
+    @Column(name = "passkey_handle")
+    private String passkeyHandle;
 
     protected Customer() {
     }
@@ -67,9 +69,20 @@ public class Customer {
         this.passwordHash = passwordHash;
     }
 
-    /** A guest who has only ordered has no password yet. */
+    /**
+     * A guest who has only ordered has neither. Accounts made before passwordless sign-in have a password;
+     * newer ones have a verified email address and no password.
+     */
     public boolean hasAccount() {
-        return passwordHash != null;
+        return passwordHash != null || email != null;
+    }
+
+    public String getPasskeyHandle() {
+        return passkeyHandle;
+    }
+
+    public void setPasskeyHandle(String passkeyHandle) {
+        this.passkeyHandle = passkeyHandle;
     }
 
     public int getPointsBalance() {

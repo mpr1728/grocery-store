@@ -221,3 +221,9 @@ h1, h2, .section-title { font-family: var(--serif); font-weight: 600; }
   .intro h1 { font-size: 1.6rem; }
 }
 .controls { padding-bottom: 8px; }
+
+.secondary { width: 100%; height: 48px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface); color: var(--accent); font-weight: 700; cursor: pointer; }
+.secondary:disabled { opacity: 0.6; cursor: default; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); margin: 18px 0; font-size: 0.85rem; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.hint.center { text-align: center; }

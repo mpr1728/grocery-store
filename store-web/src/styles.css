@@ -212,3 +212,9 @@ tr:last-child td { border-bottom: 0; }
 .nutrition .hint { margin: 8px 0 0; }
 
 .more { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0; }
+
+.secondary { width: 100%; height: 48px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface); color: var(--accent); font-weight: 700; cursor: pointer; }
+.secondary:disabled { opacity: 0.6; cursor: default; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); margin: 18px 0; font-size: 0.85rem; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.hint.center { text-align: center; }

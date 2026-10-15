@@ -21,11 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.grocerystore.api.account.AccountDtos.AccountView;
 import com.grocerystore.api.account.AccountDtos.ConfirmSignUpRequest;
+import com.grocerystore.api.account.AccountDtos.EmailCodeSent;
+import com.grocerystore.api.account.AccountDtos.EmailVerified;
+import com.grocerystore.api.account.AccountDtos.FinishEmailSignUpRequest;
 import com.grocerystore.api.account.AccountDtos.PointView;
 import com.grocerystore.api.account.AccountDtos.SignInRequest;
 import com.grocerystore.api.account.AccountDtos.SignUpRequest;
 import com.grocerystore.api.account.AccountDtos.SignUpResponse;
 import com.grocerystore.api.account.AccountDtos.SignedIn;
+import com.grocerystore.api.account.AccountDtos.VerifyEmailCodeRequest;
 import com.grocerystore.api.common.BadRequestException;
 import com.grocerystore.api.common.PhoneNumbers;
 import com.grocerystore.api.common.StoreProperties;
@@ -49,6 +53,7 @@ public class AccountService {
     private final CustomerRepository customers;
     private final SessionRepository sessions;
     private final SignupRequestRepository signups;
+    private final EmailCodeRepository emailCodes;
     private final ObjectProvider<Mailer> mailer;
     private final RewardsService rewards;
     private final StoreProperties properties;
@@ -57,11 +62,12 @@ public class AccountService {
     private final SecureRandom random = new SecureRandom();
 
     public AccountService(CustomerRepository customers, SessionRepository sessions,
-            SignupRequestRepository signups, ObjectProvider<Mailer> mailer, RewardsService rewards,
-            StoreProperties properties, Clock clock) {
+            SignupRequestRepository signups, EmailCodeRepository emailCodes, ObjectProvider<Mailer> mailer,
+            RewardsService rewards, StoreProperties properties, Clock clock) {
         this.customers = customers;
         this.sessions = sessions;
         this.signups = signups;
+        this.emailCodes = emailCodes;
         this.mailer = mailer;
         this.rewards = rewards;
         this.properties = properties;
@@ -134,10 +140,85 @@ public class AccountService {
         Customer customer = (login.contains("@")
                 ? customers.findByEmail(normalizeEmail(login))
                 : customers.findByPhone(PhoneNumbers.normalize(login))).orElse(null);
-        if (customer == null || !customer.hasAccount()
+        if (customer == null || customer.getPasswordHash() == null
                 || !passwords.matches(request.password(), customer.getPasswordHash())) {
             throw new BadRequestException("Those details do not match an account.");
         }
+        return new SignedIn(newSession(customer, Instant.now(clock)), view(customer));
+    }
+
+    /**
+     * Sends a one-time code to an email address. The same code signs in an existing account or starts a new one,
+     * so there is no password to forget. Where no email can be sent (local runs), the code goes to the log.
+     */
+    @Transactional
+    public EmailCodeSent sendEmailCode(String rawEmail) {
+        Instant now = Instant.now(clock);
+        String email = normalizeEmail(rawEmail);
+        if (emailCodes.countByEmailAndCreatedAtAfter(email, now.minus(CODE_WINDOW)) >= MAX_CODES_PER_WINDOW) {
+            throw new BadRequestException("Too many codes were sent to this address. Please wait a few minutes.");
+        }
+        String codeId = randomToken();
+        String code = String.format("%06d", random.nextInt(1_000_000));
+        emailCodes.save(new EmailCode(hash(codeId), email, hash(codeId + code), now.plus(CODE_LIFETIME), now));
+        Mailer sender = mailer.getIfAvailable();
+        if (sender == null) {
+            log.warn("No mail sender is set up, so the sign-in code is only logged: {}", code);
+            return new EmailCodeSent(codeId, email);
+        }
+        try {
+            sender.send(email, code + " is your " + properties.brandName() + " code",
+                    "Your " + properties.brandName() + " code is " + code + ".\n\n"
+                            + "Enter it to sign in or to create your account. It works for "
+                            + CODE_LIFETIME.toMinutes() + " minutes. "
+                            + "If you did not ask for it, you can ignore this email.\n\n"
+                            + properties.brandName() + "\n" + properties.brandTagline());
+        } catch (RuntimeException e) {
+            log.warn("Sign-in code could not be sent", e);
+            throw new UnavailableException("We could not send a code to that email address. Check it and try again.");
+        }
+        return new EmailCodeSent(codeId, email);
+    }
+
+    /** Checks the code. An existing account is signed in; a new address is asked for a name next. */
+    @Transactional(noRollbackFor = BadRequestException.class)
+    public EmailVerified verifyEmailCode(VerifyEmailCodeRequest request) {
+        Instant now = Instant.now(clock);
+        EmailCode emailCode = emailCodes.findByTokenHash(hash(request.codeId()))
+                .filter(c -> c.getExpiresAt().isAfter(now) && c.getAttempts() < MAX_CODE_ATTEMPTS)
+                .orElseThrow(() -> new BadRequestException("That code is no longer valid. Please ask for a new one."));
+        boolean matches = MessageDigest.isEqual(
+                hash(request.codeId() + request.code()).getBytes(StandardCharsets.UTF_8),
+                emailCode.getCodeHash().getBytes(StandardCharsets.UTF_8));
+        if (!matches) {
+            emailCode.addAttempt();
+            throw new BadRequestException("That code is not right. Check the email and try again.");
+        }
+        Optional<Customer> existing = customers.findByEmail(emailCode.getEmail());
+        if (existing.isPresent()) {
+            emailCodes.delete(emailCode);
+            return new EmailVerified(newSession(existing.get(), now), view(existing.get()), false);
+        }
+        emailCode.verify(now, now.plus(CODE_WINDOW));
+        return new EmailVerified(null, null, true);
+    }
+
+    /** Creates the account for an address whose code was entered correctly. */
+    @Transactional
+    public SignedIn finishEmailSignUp(FinishEmailSignUpRequest request) {
+        Instant now = Instant.now(clock);
+        EmailCode emailCode = emailCodes.findByTokenHash(hash(request.codeId()))
+                .filter(c -> c.getVerifiedAt() != null && c.getExpiresAt().isAfter(now))
+                .orElseThrow(() -> new BadRequestException("That sign-up has expired. Please ask for a new code."));
+        String phone = PhoneNumbers.normalize(request.phone());
+        requireFree(phone, emailCode.getEmail());
+        SignedIn signedIn = createAccount(request.name().trim(), phone, emailCode.getEmail(), null, now);
+        emailCodes.delete(emailCode);
+        return signedIn;
+    }
+
+    /** Starts a session for a customer proven some other way, such as a passkey. */
+    public SignedIn startSession(Customer customer) {
         return new SignedIn(newSession(customer, Instant.now(clock)), view(customer));
     }
 

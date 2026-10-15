@@ -48,4 +48,24 @@ public final class AccountDtos {
 
     public record SignedIn(String token, AccountView account) {
     }
+
+    public record EmailCodeRequest(@NotBlank @Email @Size(max = 254) String email) {
+    }
+
+    /** codeId identifies this code in the next step. The address itself is not said to have an account or not. */
+    public record EmailCodeSent(String codeId, String sentTo) {
+    }
+
+    public record VerifyEmailCodeRequest(@NotBlank @Size(max = 100) String codeId,
+            @NotBlank @Pattern(regexp = "[0-9]{6}", message = "must be the 6 digit code") String code) {
+    }
+
+    /** Either signed in (token and account), or the address is new and needsProfile asks for a name first. */
+    public record EmailVerified(String token, AccountView account, boolean needsProfile) {
+    }
+
+    public record FinishEmailSignUpRequest(@NotBlank @Size(max = 100) String codeId,
+            @NotBlank @Size(max = 100) String name,
+            @Pattern(regexp = PhoneNumbers.PATTERN, message = PhoneNumbers.MESSAGE) String phone) {
+    }
 }

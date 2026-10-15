@@ -1,0 +1,45 @@
+-- Passwordless accounts: sign up and sign in with a code sent to the email address, or with a passkey.
+-- Passwords set before this change keep working.
+
+-- Random, private id given to the customer's passkeys. Never shown and never derived from their details.
+ALTER TABLE customers ADD COLUMN passkey_handle VARCHAR(64);
+ALTER TABLE customers ADD CONSTRAINT uq_customers_passkey_handle UNIQUE (passkey_handle);
+
+-- A one-time code sent to an email address. verified_at is set once the right code is entered, which lets a new
+-- customer finish sign-up (name, optional mobile) with the same code.
+CREATE TABLE email_codes (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  token_hash VARCHAR(64) NOT NULL,
+  email VARCHAR(254) NOT NULL,
+  code_hash VARCHAR(64) NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  verified_at TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  CONSTRAINT uq_email_codes_token UNIQUE (token_hash)
+);
+CREATE INDEX ix_email_codes_email ON email_codes (email, created_at);
+
+CREATE TABLE passkeys (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  customer_id BIGINT NOT NULL,
+  credential_id VARCHAR(1400) NOT NULL,
+  public_key VARCHAR(2000) NOT NULL,
+  signature_count BIGINT NOT NULL,
+  label VARCHAR(60) NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  last_used_at TIMESTAMP,
+  CONSTRAINT uq_passkeys_credential UNIQUE (credential_id),
+  CONSTRAINT fk_passkeys_customer FOREIGN KEY (customer_id) REFERENCES customers (id)
+);
+CREATE INDEX ix_passkeys_customer ON passkeys (customer_id);
+
+-- The options sent to the browser for a passkey registration or sign-in, kept until the browser answers.
+CREATE TABLE passkey_ceremonies (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  token_hash VARCHAR(64) NOT NULL,
+  customer_id BIGINT,
+  request_json VARCHAR(8000) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  CONSTRAINT uq_passkey_ceremonies_token UNIQUE (token_hash)
+);
