@@ -52,8 +52,12 @@ public final class AccountDtos {
     public record GoogleSignInRequest(@NotBlank @Size(max = 4096) String credential) {
     }
 
-    /** Which sign-in options the page should offer. googleClientId is empty when Google sign-in is off. */
-    public record SignInOptions(String googleClientId) {
+    /** name is what Apple gave the page on the first sign-in, if anything. */
+    public record AppleSignInRequest(@NotBlank @Size(max = 4096) String idToken, @Size(max = 100) String name) {
+    }
+
+    /** Which sign-in options the page should offer. An empty client id means that provider is off. */
+    public record SignInOptions(String googleClientId, String appleClientId) {
     }
 
     public record EmailCodeRequest(@NotBlank @Email @Size(max = 254) String email) {

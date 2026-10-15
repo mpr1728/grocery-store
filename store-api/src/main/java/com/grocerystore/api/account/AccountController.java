@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.grocerystore.api.account.AccountDtos.AccountView;
+import com.grocerystore.api.account.AccountDtos.AppleSignInRequest;
 import com.grocerystore.api.account.AccountDtos.ConfirmSignUpRequest;
 import com.grocerystore.api.account.AccountDtos.EmailCodeRequest;
 import com.grocerystore.api.account.AccountDtos.EmailCodeSent;
@@ -49,12 +50,17 @@ public class AccountController {
 
     @GetMapping("/auth/options")
     public SignInOptions signInOptions() {
-        return new SignInOptions(accounts.googleClientId());
+        return new SignInOptions(accounts.googleClientId(), accounts.appleClientId());
     }
 
     @PostMapping("/auth/google")
     public SignedIn signInWithGoogle(@Valid @RequestBody GoogleSignInRequest request) {
         return accounts.signInWithGoogle(request.credential());
+    }
+
+    @PostMapping("/auth/apple")
+    public SignedIn signInWithApple(@Valid @RequestBody AppleSignInRequest request) {
+        return accounts.signInWithApple(request.idToken(), request.name());
     }
 
     @PostMapping("/auth/email/code")

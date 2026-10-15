@@ -55,6 +55,7 @@ public class AccountService {
     private final SignupRequestRepository signups;
     private final EmailCodeRepository emailCodes;
     private final GoogleTokens google;
+    private final AppleTokens apple;
     private final ObjectProvider<Mailer> mailer;
     private final RewardsService rewards;
     private final StoreProperties properties;
@@ -64,12 +65,13 @@ public class AccountService {
 
     public AccountService(CustomerRepository customers, SessionRepository sessions,
             SignupRequestRepository signups, EmailCodeRepository emailCodes, GoogleTokens google,
-            ObjectProvider<Mailer> mailer, RewardsService rewards, StoreProperties properties, Clock clock) {
+            AppleTokens apple, ObjectProvider<Mailer> mailer, RewardsService rewards, StoreProperties properties, Clock clock) {
         this.customers = customers;
         this.sessions = sessions;
         this.signups = signups;
         this.emailCodes = emailCodes;
         this.google = google;
+        this.apple = apple;
         this.mailer = mailer;
         this.rewards = rewards;
         this.properties = properties;
@@ -219,34 +221,56 @@ public class AccountService {
         return signedIn;
     }
 
-    /**
-     * Signs in with a Google ID token. Google has confirmed the email address, so an account with that address is
-     * the same person and is linked; otherwise a new account is made with the name Google gives.
-     */
+    /** Signs in with a Google ID token. */
     @Transactional
     public SignedIn signInWithGoogle(String idToken) {
-        GoogleTokens.GoogleIdentity identity = google.verify(idToken);
+        ProviderTokens.Identity identity = google.verify(idToken);
+        return signInWithProvider(identity, identity.name(), customers.findByGoogleSubject(identity.subject()),
+                Customer::setGoogleSubject);
+    }
+
+    /**
+     * Signs in with an Apple ID token. Apple sends the person's name only to the page, and only the first time,
+     * so the page passes it on; it is used only when a new account is made.
+     */
+    @Transactional
+    public SignedIn signInWithApple(String idToken, String nameFromPage) {
+        ProviderTokens.Identity identity = apple.verify(idToken);
+        return signInWithProvider(identity, nameFromPage, customers.findByAppleSubject(identity.subject()),
+                Customer::setAppleSubject);
+    }
+
+    /**
+     * The provider has confirmed the email address, so an account with that address is the same person and is
+     * linked; otherwise a new account is made.
+     */
+    private SignedIn signInWithProvider(ProviderTokens.Identity identity, String name, Optional<Customer> linked,
+            java.util.function.BiConsumer<Customer, String> link) {
         Instant now = Instant.now(clock);
-        Optional<Customer> linked = customers.findByGoogleSubject(identity.subject());
         if (linked.isPresent()) {
             return new SignedIn(newSession(linked.get(), now), view(linked.get()));
         }
         String email = normalizeEmail(identity.email());
         Optional<Customer> sameEmail = customers.findByEmail(email);
         if (sameEmail.isPresent()) {
-            sameEmail.get().setGoogleSubject(identity.subject());
+            link.accept(sameEmail.get(), identity.subject());
             return new SignedIn(newSession(sameEmail.get(), now), view(sameEmail.get()));
         }
-        String name = identity.name() == null || identity.name().isBlank() ? email.substring(0, email.indexOf('@'))
-                : identity.name().trim();
-        SignedIn created = createAccount(name.length() > 100 ? name.substring(0, 100) : name, null, email, null, now);
-        customers.findByEmail(email).orElseThrow().setGoogleSubject(identity.subject());
+        String display = name == null || name.isBlank() ? email.substring(0, email.indexOf('@')) : name.trim();
+        SignedIn created = createAccount(display.length() > 100 ? display.substring(0, 100) : display, null, email,
+                null, now);
+        link.accept(customers.findByEmail(email).orElseThrow(), identity.subject());
         return created;
     }
 
     /** The Google client id for the sign-in button, or empty when Google sign-in is off. */
     public String googleClientId() {
         return google.clientId();
+    }
+
+    /** The Apple Services ID for the sign-in button, or empty when Sign in with Apple is off. */
+    public String appleClientId() {
+        return apple.clientId();
     }
 
     /** Starts a session for a customer proven some other way, such as a passkey. */

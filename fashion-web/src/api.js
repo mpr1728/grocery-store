@@ -105,6 +105,7 @@ export const api = {
   me: () => request('/me'),
   signInOptions: () => request('/auth/options'),
   googleSignIn: (credential) => post('/auth/google', { credential }),
+  appleSignIn: (idToken, name) => post('/auth/apple', { idToken, name }),
   sendEmailCode: (email) => post('/auth/email/code', { email }),
   verifyEmailCode: (codeId, code) => post('/auth/email/verify', { codeId, code }),
   finishEmailSignUp: (details) => post('/auth/email/finish', details),

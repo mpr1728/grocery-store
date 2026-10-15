@@ -29,6 +29,8 @@ public class Customer {
     private String passkeyHandle;
     @Column(name = "google_subject")
     private String googleSubject;
+    @Column(name = "apple_subject")
+    private String appleSubject;
 
     protected Customer() {
     }
@@ -101,5 +103,13 @@ public class Customer {
 
     public void setGoogleSubject(String googleSubject) {
         this.googleSubject = googleSubject;
+    }
+
+    public String getAppleSubject() {
+        return appleSubject;
+    }
+
+    public void setAppleSubject(String appleSubject) {
+        this.appleSubject = appleSubject;
     }
 }

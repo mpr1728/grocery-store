@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from './api';
+import AppleButton from './AppleButton';
 import GoogleButton from './GoogleButton';
 import PhoneField, { phoneIsEmpty, phoneIsValid } from './PhoneField';
 import { passkeysSupported, usePasskey, useUnlockMethod, wasCancelled } from './webauthn';
@@ -28,6 +29,12 @@ export default function SignIn({ onSignedIn, brand }) {
   const [problem, setProblem] = useState(null);
   const [note, setNote] = useState(null);
   const unlock = useUnlockMethod();
+  // Which of Google and Apple are switched on. Each is off until its client id is set on the API.
+  const [providers, setProviders] = useState({});
+
+  useEffect(() => {
+    api.signInOptions().then(setProviders).catch(() => {});
+  }, []);
 
   async function attempt(action) {
     setWorking(true);
@@ -82,6 +89,7 @@ export default function SignIn({ onSignedIn, brand }) {
   });
 
   const withGoogle = (credential) => attempt(async () => onSignedIn(await api.googleSignIn(credential)));
+  const withApple = (idToken, appleName) => attempt(async () => onSignedIn(await api.appleSignIn(idToken, appleName)));
 
   const withPassword = (event) => {
     event.preventDefault();
@@ -159,7 +167,15 @@ export default function SignIn({ onSignedIn, brand }) {
     <div className="narrow">
       <h2>Sign in or create an account</h2>
       <p className="hint">New here or coming back, it is the same steps. One {brand} account works for Fresh and Fashion.</p>
-      <GoogleButton onCredential={withGoogle} />
+      {(providers.appleClientId || providers.googleClientId) && (
+        <>
+          <div className="providers">
+            {providers.appleClientId && <AppleButton clientId={providers.appleClientId} onToken={withApple} onFailure={setProblem} />}
+            {providers.googleClientId && <GoogleButton clientId={providers.googleClientId} onCredential={withGoogle} />}
+          </div>
+          <p className="or"><span>or</span></p>
+        </>
+      )}
       <p className="hint">Enter your email and we will send you a code. New here? The same code creates your account.</p>
       <form onSubmit={sendCode} className="checkout">
         <label>Email address

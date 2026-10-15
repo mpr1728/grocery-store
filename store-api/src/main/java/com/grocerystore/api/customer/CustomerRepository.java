@@ -19,6 +19,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByGoogleSubject(String googleSubject);
 
+    Optional<Customer> findByAppleSubject(String appleSubject);
+
     // Points are spent and earned under this lock so two orders cannot spend the same balance.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Customer c where c.id = :id")
