@@ -49,6 +49,13 @@ public final class AccountDtos {
     public record SignedIn(String token, AccountView account) {
     }
 
+    public record GoogleSignInRequest(@NotBlank @Size(max = 4096) String credential) {
+    }
+
+    /** Which sign-in options the page should offer. googleClientId is empty when Google sign-in is off. */
+    public record SignInOptions(String googleClientId) {
+    }
+
     public record EmailCodeRequest(@NotBlank @Email @Size(max = 254) String email) {
     }
 

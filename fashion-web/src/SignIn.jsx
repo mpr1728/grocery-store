@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from './api';
+import GoogleButton from './GoogleButton';
 import PhoneField, { phoneIsEmpty, phoneIsValid } from './PhoneField';
 import { passkeysSupported, usePasskey, useUnlockMethod, wasCancelled } from './webauthn';
 
@@ -80,6 +81,8 @@ export default function SignIn({ onSignedIn, brand }) {
     onSignedIn(await api.passkeySignIn(options.ceremonyId, answer));
   });
 
+  const withGoogle = (credential) => attempt(async () => onSignedIn(await api.googleSignIn(credential)));
+
   const withPassword = (event) => {
     event.preventDefault();
     return attempt(async () => onSignedIn(await api.signIn({ login: login.trim(), password })));
@@ -155,7 +158,9 @@ export default function SignIn({ onSignedIn, brand }) {
   return (
     <div className="narrow">
       <h2>Sign in or create an account</h2>
-      <p className="hint">Enter your email and we will send you a code. New here? The same code creates your account. One {brand} account works for Fresh and Fashion.</p>
+      <p className="hint">New here or coming back, it is the same steps. One {brand} account works for Fresh and Fashion.</p>
+      <GoogleButton onCredential={withGoogle} />
+      <p className="hint">Enter your email and we will send you a code. New here? The same code creates your account.</p>
       <form onSubmit={sendCode} className="checkout">
         <label>Email address
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254}

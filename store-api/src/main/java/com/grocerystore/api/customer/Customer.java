@@ -27,6 +27,8 @@ public class Customer {
     private int pointsBalance;
     @Column(name = "passkey_handle")
     private String passkeyHandle;
+    @Column(name = "google_subject")
+    private String googleSubject;
 
     protected Customer() {
     }
@@ -91,5 +93,13 @@ public class Customer {
 
     public void addPoints(int points) {
         this.pointsBalance = Math.addExact(pointsBalance, points);
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    public void setGoogleSubject(String googleSubject) {
+        this.googleSubject = googleSubject;
     }
 }

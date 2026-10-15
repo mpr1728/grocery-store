@@ -54,6 +54,7 @@ public class AccountService {
     private final SessionRepository sessions;
     private final SignupRequestRepository signups;
     private final EmailCodeRepository emailCodes;
+    private final GoogleTokens google;
     private final ObjectProvider<Mailer> mailer;
     private final RewardsService rewards;
     private final StoreProperties properties;
@@ -62,12 +63,13 @@ public class AccountService {
     private final SecureRandom random = new SecureRandom();
 
     public AccountService(CustomerRepository customers, SessionRepository sessions,
-            SignupRequestRepository signups, EmailCodeRepository emailCodes, ObjectProvider<Mailer> mailer,
-            RewardsService rewards, StoreProperties properties, Clock clock) {
+            SignupRequestRepository signups, EmailCodeRepository emailCodes, GoogleTokens google,
+            ObjectProvider<Mailer> mailer, RewardsService rewards, StoreProperties properties, Clock clock) {
         this.customers = customers;
         this.sessions = sessions;
         this.signups = signups;
         this.emailCodes = emailCodes;
+        this.google = google;
         this.mailer = mailer;
         this.rewards = rewards;
         this.properties = properties;
@@ -215,6 +217,36 @@ public class AccountService {
         SignedIn signedIn = createAccount(request.name().trim(), phone, emailCode.getEmail(), null, now);
         emailCodes.delete(emailCode);
         return signedIn;
+    }
+
+    /**
+     * Signs in with a Google ID token. Google has confirmed the email address, so an account with that address is
+     * the same person and is linked; otherwise a new account is made with the name Google gives.
+     */
+    @Transactional
+    public SignedIn signInWithGoogle(String idToken) {
+        GoogleTokens.GoogleIdentity identity = google.verify(idToken);
+        Instant now = Instant.now(clock);
+        Optional<Customer> linked = customers.findByGoogleSubject(identity.subject());
+        if (linked.isPresent()) {
+            return new SignedIn(newSession(linked.get(), now), view(linked.get()));
+        }
+        String email = normalizeEmail(identity.email());
+        Optional<Customer> sameEmail = customers.findByEmail(email);
+        if (sameEmail.isPresent()) {
+            sameEmail.get().setGoogleSubject(identity.subject());
+            return new SignedIn(newSession(sameEmail.get(), now), view(sameEmail.get()));
+        }
+        String name = identity.name() == null || identity.name().isBlank() ? email.substring(0, email.indexOf('@'))
+                : identity.name().trim();
+        SignedIn created = createAccount(name.length() > 100 ? name.substring(0, 100) : name, null, email, null, now);
+        customers.findByEmail(email).orElseThrow().setGoogleSubject(identity.subject());
+        return created;
+    }
+
+    /** The Google client id for the sign-in button, or empty when Google sign-in is off. */
+    public String googleClientId() {
+        return google.clientId();
     }
 
     /** Starts a session for a customer proven some other way, such as a passkey. */

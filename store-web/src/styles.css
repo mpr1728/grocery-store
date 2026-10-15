@@ -218,3 +218,4 @@ tr:last-child td { border-bottom: 0; }
 .or { display: flex; align-items: center; gap: 12px; color: var(--muted); margin: 18px 0; font-size: 0.85rem; }
 .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .hint.center { text-align: center; }
+.google-button { display: flex; justify-content: center; min-height: 44px; margin-top: 8px; }

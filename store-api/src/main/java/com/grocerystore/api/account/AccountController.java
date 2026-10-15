@@ -15,6 +15,8 @@ import com.grocerystore.api.account.AccountDtos.EmailCodeRequest;
 import com.grocerystore.api.account.AccountDtos.EmailCodeSent;
 import com.grocerystore.api.account.AccountDtos.EmailVerified;
 import com.grocerystore.api.account.AccountDtos.FinishEmailSignUpRequest;
+import com.grocerystore.api.account.AccountDtos.GoogleSignInRequest;
+import com.grocerystore.api.account.AccountDtos.SignInOptions;
 import com.grocerystore.api.account.AccountDtos.SignInRequest;
 import com.grocerystore.api.account.AccountDtos.SignUpRequest;
 import com.grocerystore.api.account.AccountDtos.SignUpResponse;
@@ -43,6 +45,16 @@ public class AccountController {
     @ResponseStatus(HttpStatus.CREATED)
     public SignedIn confirmSignUp(@Valid @RequestBody ConfirmSignUpRequest request) {
         return accounts.confirmSignUp(request);
+    }
+
+    @GetMapping("/auth/options")
+    public SignInOptions signInOptions() {
+        return new SignInOptions(accounts.googleClientId());
+    }
+
+    @PostMapping("/auth/google")
+    public SignedIn signInWithGoogle(@Valid @RequestBody GoogleSignInRequest request) {
+        return accounts.signInWithGoogle(request.credential());
     }
 
     @PostMapping("/auth/email/code")

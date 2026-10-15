@@ -47,6 +47,12 @@
             <artifactId>webauthn-server-core</artifactId>
             <version>2.6.0</version>
         </dependency>
+        <!-- Sign in with Google: checks the signature on Google's ID tokens. -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.40</version>
+        </dependency>
         <!-- Shopping assistant: invokes the Lambda function that calls the model. -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
